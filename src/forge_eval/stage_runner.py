@@ -8,6 +8,7 @@ from typing import Any
 from forge_eval.errors import StageError, ValidationError
 from forge_eval.stages.capture_estimate import run_stage as run_capture_estimate_stage
 from forge_eval.stages.hazard_map import run_stage as run_hazard_map_stage
+from forge_eval.stages.merge_decision import run_stage as run_merge_decision_stage
 from forge_eval.services.git_diff import resolve_commit
 from forge_eval.stages.occupancy_snapshot import run_stage as run_occupancy_snapshot_stage
 from forge_eval.stages.context_slices import run_stage as run_context_slices_stage
@@ -25,6 +26,7 @@ STAGE_ORDER = (
     "occupancy_snapshot",
     "capture_estimate",
     "hazard_map",
+    "merge_decision",
 )
 STAGE_TO_ARTIFACT_KIND = {
     "risk_heatmap": "risk_heatmap",
@@ -34,6 +36,7 @@ STAGE_TO_ARTIFACT_KIND = {
     "occupancy_snapshot": "occupancy_snapshot",
     "capture_estimate": "capture_estimate",
     "hazard_map": "hazard_map",
+    "merge_decision": "merge_decision",
 }
 
 
@@ -195,6 +198,22 @@ def _run_stage(
             telemetry_matrix_artifact=telemetry_artifact,
             occupancy_snapshot_artifact=occupancy_artifact,
             capture_estimate_artifact=capture_artifact,
+        )
+
+    if stage == "merge_decision":
+        hazard_artifact = prior_artifacts.get("hazard_map")
+        if hazard_artifact is None:
+            raise StageError(
+                "merge_decision stage requires hazard_map artifact",
+                stage=stage,
+            )
+        return run_merge_decision_stage(
+            repo_path=repo_path,
+            base_ref=base_ref,
+            head_ref=head_ref,
+            run_id=run_id,
+            config=config,
+            hazard_map_artifact=hazard_artifact,
         )
 
     raise StageError("unknown stage requested", stage=stage, details={"stage": stage})

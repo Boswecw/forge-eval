@@ -2,28 +2,144 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "kind", "run_id", "decision", "rationale", "thresholds", "provenance"],
+  "required": [
+    "artifact_version",
+    "kind",
+    "run",
+    "inputs",
+    "decision",
+    "summary",
+    "reason_codes",
+    "model",
+    "provenance"
+  ],
   "properties": {
-    "schema_version": {"type": "string", "const": "v1"},
+    "artifact_version": {"type": "integer", "const": 1},
     "kind": {"type": "string", "const": "merge_decision"},
-    "run_id": {"type": "string", "minLength": 1},
-    "decision": {"type": "string", "enum": ["MERGE", "BLOCK", "REVIEW"]},
-    "rationale": {"type": "string", "minLength": 1},
-    "thresholds": {
+    "run": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["hazard_threshold", "occupancy_threshold"],
+      "required": [
+        "run_id",
+        "repo_path",
+        "base_ref",
+        "head_ref",
+        "base_commit",
+        "head_commit",
+        "hazard_artifact"
+      ],
       "properties": {
-        "hazard_threshold": {"type": "number", "minimum": 0, "maximum": 1},
-        "occupancy_threshold": {"type": "number", "minimum": 0, "maximum": 1}
+        "run_id": {"type": "string", "minLength": 1},
+        "repo_path": {"type": "string", "minLength": 1},
+        "base_ref": {"type": "string", "minLength": 1},
+        "head_ref": {"type": "string", "minLength": 1},
+        "base_commit": {"type": "string", "minLength": 1},
+        "head_commit": {"type": "string", "minLength": 1},
+        "hazard_artifact": {"type": "string", "const": "hazard_map.json"}
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "hazard_artifact"],
+      "properties": {
+        "mode": {"type": "string", "const": "deterministic_advisory"},
+        "hazard_artifact": {"type": "string", "const": "hazard_map.json"}
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result",
+        "advisory",
+        "blocking_conditions_present",
+        "caution_conditions_present"
+      ],
+      "properties": {
+        "result": {"type": "string", "enum": ["allow", "caution", "block"]},
+        "advisory": {"type": "boolean", "const": true},
+        "blocking_conditions_present": {"type": "boolean"},
+        "caution_conditions_present": {"type": "boolean"}
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_label",
+        "hazard_score",
+        "dominant_hazard_tier",
+        "blocking_signals_present",
+        "blocking_reason_count",
+        "caution_reason_count",
+        "reason_code_count",
+        "uncertainty_flag_count"
+      ],
+      "properties": {
+        "decision_label": {"type": "string", "enum": ["ALLOW", "CAUTION", "BLOCK"]},
+        "hazard_score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "dominant_hazard_tier": {
+          "type": "string",
+          "enum": ["low", "guarded", "elevated", "high", "critical"]
+        },
+        "blocking_signals_present": {"type": "boolean"},
+        "blocking_reason_count": {"type": "integer", "minimum": 0},
+        "caution_reason_count": {"type": "integer", "minimum": 0},
+        "reason_code_count": {"type": "integer", "minimum": 0},
+        "uncertainty_flag_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "HAZARD_BLOCKING_SIGNAL_PRESENT",
+          "HAZARD_TIER_CRITICAL",
+          "HAZARD_TIER_HIGH",
+          "HAZARD_SCORE_AT_OR_ABOVE_BLOCK_THRESHOLD",
+          "HAZARD_TIER_ELEVATED",
+          "HAZARD_TIER_GUARDED",
+          "HAZARD_SCORE_AT_OR_ABOVE_CAUTION_THRESHOLD",
+          "HAZARD_UNCERTAINTY_PRESENT",
+          "HAZARD_HIDDEN_PRESSURE_ELEVATED"
+        ]
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "mode", "decision_policy", "parameters"],
+      "properties": {
+        "name": {"type": "string", "const": "merge_rev1"},
+        "mode": {"type": "string", "const": "deterministic_advisory"},
+        "decision_policy": {"type": "string", "const": "hazard_gate_v1"},
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "merge_decision_caution_threshold",
+            "merge_decision_block_threshold",
+            "merge_decision_block_on_hazard_blocking_signals"
+          ],
+          "properties": {
+            "merge_decision_caution_threshold": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+            "merge_decision_block_threshold": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+            "merge_decision_block_on_hazard_blocking_signals": {"type": "boolean"}
+          }
+        }
       }
     },
     "provenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["algorithm"],
+      "required": ["algorithm", "deterministic", "inputs", "model_version"],
       "properties": {
-        "algorithm": {"type": "string", "minLength": 1}
+        "algorithm": {"type": "string", "const": "merge_decision_v1"},
+        "deterministic": {"type": "boolean"},
+        "inputs": {"const": ["hazard_map.json"]},
+        "model_version": {"type": "string", "const": "merge_rev1"}
       }
     }
   }

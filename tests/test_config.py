@@ -19,6 +19,7 @@ def test_config_normalization_defaults() -> None:
         "occupancy_snapshot",
         "capture_estimate",
         "hazard_map",
+        "merge_decision",
     ]
     assert cfg["include_file_extensions"] == sorted(DEFAULT_CONFIG["include_file_extensions"])
     assert cfg["exclude_paths"] == sorted(DEFAULT_CONFIG["exclude_paths"])
@@ -31,6 +32,7 @@ def test_config_normalization_defaults() -> None:
     assert cfg["capture_inclusion_policy"] == "include_all"
     assert cfg["capture_selection_policy"] == "max_hidden"
     assert cfg["hazard_model_version"] == "hazard_rev1"
+    assert cfg["merge_decision_model_version"] == "merge_rev1"
     assert [reviewer["reviewer_id"] for reviewer in cfg["reviewers"]] == sorted(
         reviewer["reviewer_id"] for reviewer in cfg["reviewers"]
     )
@@ -180,3 +182,35 @@ def test_hazard_map_requires_capture_estimate() -> None:
 def test_hazard_model_version_must_be_supported() -> None:
     with pytest.raises(ConfigError):
         normalize_config({"hazard_model_version": "hazard_revX"})
+
+
+def test_merge_decision_requires_hazard_map() -> None:
+    with pytest.raises(ConfigError):
+        normalize_config(
+            {
+                "enabled_stages": [
+                    "risk_heatmap",
+                    "context_slices",
+                    "review_findings",
+                    "telemetry_matrix",
+                    "occupancy_snapshot",
+                    "capture_estimate",
+                    "merge_decision",
+                ]
+            }
+        )
+
+
+def test_merge_decision_model_version_must_be_supported() -> None:
+    with pytest.raises(ConfigError):
+        normalize_config({"merge_decision_model_version": "merge_revX"})
+
+
+def test_merge_decision_thresholds_must_be_ordered() -> None:
+    with pytest.raises(ConfigError):
+        normalize_config(
+            {
+                "merge_decision_caution_threshold": 0.7,
+                "merge_decision_block_threshold": 0.6,
+            }
+        )

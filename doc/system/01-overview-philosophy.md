@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`forge-eval` is a deterministic, fail-closed evaluation foundation implementing Packs A-K:
+`forge-eval` is a deterministic, fail-closed evaluation foundation implementing Packs A-L:
 
 - Pack A: Python scaffold, CLI, orchestration, error model.
 - Pack B: Rust evidence binary (`forge-evidence`) for canonical JSON/hash/hashchain primitives.
@@ -15,14 +15,15 @@
 - Pack I: Deterministic occupancy posterior estimation (`psi_post`) with conservative null handling.
 - Pack J: Deterministic hidden-defect estimation (`capture_estimate`) with Chao1/ICE and conservative selection.
 - Pack K: Deterministic hazard assessment (`hazard_map`) combining structural risk, observed burden, residual occupancy concern, and hidden-defect pressure.
+- Pack L: Deterministic advisory merge decision (`merge_decision`) from Pack K hazard evidence.
 
 ## Current Pipeline Boundary
 
 Implemented path:
 
-`config -> risk_heatmap -> context_slices -> review_findings -> telemetry_matrix -> occupancy_snapshot -> capture_estimate -> hazard_map`
+`config -> risk_heatmap -> context_slices -> review_findings -> telemetry_matrix -> occupancy_snapshot -> capture_estimate -> hazard_map -> merge_decision`
 
-Planned downstream (not implemented here): merge decision, bundle assembly.
+Planned downstream (not implemented here): bundle assembly.
 
 ## Governing Principles
 

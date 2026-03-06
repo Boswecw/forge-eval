@@ -1,6 +1,6 @@
 # Forge Eval System Documentation
 
-**Document version:** 1.1 (2026-03-06) — Implemented Pack K hazard stage and normalized to Forge Documentation Protocol v1
+**Document version:** 1.2 (2026-03-06) — Implemented Pack L merge decision stage and normalized to Forge Documentation Protocol v1
 **Protocol:** Forge Documentation Protocol v1
 
 This `doc/system/` tree uses explicit truth classes:
@@ -32,6 +32,7 @@ Assembly contract:
 | §14 | [14-occupancy-snapshot-stage.md](14-occupancy-snapshot-stage.md) | Pack I deterministic occupancy posterior (`psi_post`) |
 | §15 | [15-capture-estimate-stage.md](15-capture-estimate-stage.md) | Pack J deterministic hidden-defect estimation via Chao1 and ICE |
 | §16 | [16-hazard-map-stage.md](16-hazard-map-stage.md) | Pack K deterministic hazard mapping from risk, telemetry, occupancy, and capture pressure |
+| §17 | [17-merge-decision-stage.md](17-merge-decision-stage.md) | Pack L deterministic advisory merge decision from Pack K hazard evidence |
 
 ## Quick Assembly
 

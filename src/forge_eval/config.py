@@ -17,6 +17,7 @@ KNOWN_STAGES = (
     "occupancy_snapshot",
     "capture_estimate",
     "hazard_map",
+    "merge_decision",
 )
 KNOWN_REVIEWER_KINDS = (
     "changed_lines",
@@ -31,6 +32,7 @@ KNOWN_OCCUPANCY_MODEL_VERSIONS = ("occupancy_rev1",)
 KNOWN_CAPTURE_INCLUSION_POLICIES = ("include_all",)
 KNOWN_CAPTURE_SELECTION_POLICIES = ("max_hidden",)
 KNOWN_HAZARD_MODEL_VERSIONS = ("hazard_rev1",)
+KNOWN_MERGE_DECISION_MODEL_VERSIONS = ("merge_rev1",)
 KNOWN_SEVERITIES = ("low", "medium", "high", "critical")
 KNOWN_CATEGORIES = (
     "correctness",
@@ -51,6 +53,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "occupancy_snapshot",
         "capture_estimate",
         "hazard_map",
+        "merge_decision",
     ],
     "risk_weights": {
         "w_churn": 0.45,
@@ -98,6 +101,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "hazard_support_uplift_strength": 0.15,
     "hazard_uncertainty_boost": 0.12,
     "hazard_blocking_threshold": 0.80,
+    "merge_decision_model_version": "merge_rev1",
+    "merge_decision_caution_threshold": 0.20,
+    "merge_decision_block_threshold": 0.60,
+    "merge_decision_block_on_hazard_blocking_signals": True,
     "reviewers": [
         {
             "reviewer_id": "changed_lines.rule.v1",
@@ -566,6 +573,42 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
             raise ConfigError("hazard_round_digits must be in [0, 12]", details={"value": value})
         cfg["hazard_round_digits"] = value
 
+    if "merge_decision_model_version" in raw:
+        value = raw["merge_decision_model_version"]
+        if value not in KNOWN_MERGE_DECISION_MODEL_VERSIONS:
+            raise ConfigError("merge_decision_model_version must be 'merge_rev1'")
+        cfg["merge_decision_model_version"] = value
+
+    merge_decision_float_keys = (
+        "merge_decision_caution_threshold",
+        "merge_decision_block_threshold",
+    )
+    for key in merge_decision_float_keys:
+        if key not in raw:
+            continue
+        value = _ensure_number(key, raw[key], min_value=0.0)
+        if value > 1.0:
+            raise ConfigError(
+                "merge decision config value must be <= 1.0",
+                details={"key": key, "value": value},
+            )
+        cfg[key] = value
+
+    if cfg["merge_decision_caution_threshold"] > cfg["merge_decision_block_threshold"]:
+        raise ConfigError(
+            "merge_decision_caution_threshold must be <= merge_decision_block_threshold",
+            details={
+                "merge_decision_caution_threshold": cfg["merge_decision_caution_threshold"],
+                "merge_decision_block_threshold": cfg["merge_decision_block_threshold"],
+            },
+        )
+
+    if "merge_decision_block_on_hazard_blocking_signals" in raw:
+        value = raw["merge_decision_block_on_hazard_blocking_signals"]
+        if not isinstance(value, bool):
+            raise ConfigError("merge_decision_block_on_hazard_blocking_signals must be a boolean")
+        cfg["merge_decision_block_on_hazard_blocking_signals"] = value
+
     if "reviewers" in raw:
         cfg["reviewers"] = _normalize_reviewers(raw["reviewers"])
 
@@ -584,6 +627,8 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
         raise ConfigError("capture_estimate stage requires occupancy_snapshot stage to be enabled")
     if "hazard_map" in enabled_stage_set and "capture_estimate" not in enabled_stage_set:
         raise ConfigError("hazard_map stage requires capture_estimate stage to be enabled")
+    if "merge_decision" in enabled_stage_set and "hazard_map" not in enabled_stage_set:
+        raise ConfigError("merge_decision stage requires hazard_map stage to be enabled")
 
     return cfg
 

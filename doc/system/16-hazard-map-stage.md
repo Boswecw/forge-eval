@@ -13,6 +13,7 @@ Input:
 Output:
 
 - `hazard_map.json` (schema kind: `hazard_map`)
+- Downstream consumer: Pack L `merge_decision` stage
 
 ## Execution Model
 

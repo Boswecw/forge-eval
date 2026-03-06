@@ -1,6 +1,6 @@
 # §9 - Schemas, Validation, and Error Model
 
-## Schema Set (Pack D + Pack G/H/I/J/K Extensions)
+## Schema Set (Pack D + Pack G/H/I/J/K/L Extensions)
 
 Implemented schema files:
 
@@ -57,6 +57,13 @@ All schemas are Draft 2020-12 and strict at root (`additionalProperties: false`)
 - locked hazard tiers (`low`, `guarded`, `elevated`, `high`, `critical`)
 - explicit uncertainty and blocking reason flags
 - provenance locked to risk + telemetry + occupancy + capture inputs and `hazard_rev1`
+
+`merge_decision.schema.json` enforces Pack L layout:
+
+- `artifact_version`, `kind`, `run`, `inputs`, `decision`, `summary`, `reason_codes`, `model`, `provenance`
+- advisory decision result locked to `allow | caution | block`
+- deterministic reason-code vocabulary for blocking and cautionary Pack K-derived conditions
+- provenance locked to `hazard_map.json` and `merge_rev1`
 
 ## Validation Behavior
 

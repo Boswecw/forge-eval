@@ -440,13 +440,54 @@ VALID_EXAMPLES = {
         },
     },
     "merge_decision": {
-        "schema_version": "v1",
+        "artifact_version": 1,
         "kind": "merge_decision",
-        "run_id": "run",
-        "decision": "REVIEW",
-        "rationale": "insufficient evidence",
-        "thresholds": {"hazard_threshold": 0.75, "occupancy_threshold": 0.75},
-        "provenance": {"algorithm": "merge-policy"},
+        "run": {
+            "run_id": "run",
+            "repo_path": "/tmp/repo",
+            "base_ref": "base",
+            "head_ref": "head",
+            "base_commit": "basec",
+            "head_commit": "headc",
+            "hazard_artifact": "hazard_map.json",
+        },
+        "inputs": {
+            "mode": "deterministic_advisory",
+            "hazard_artifact": "hazard_map.json",
+        },
+        "decision": {
+            "result": "caution",
+            "advisory": True,
+            "blocking_conditions_present": False,
+            "caution_conditions_present": True,
+        },
+        "summary": {
+            "decision_label": "CAUTION",
+            "hazard_score": 0.55,
+            "dominant_hazard_tier": "elevated",
+            "blocking_signals_present": False,
+            "blocking_reason_count": 0,
+            "caution_reason_count": 2,
+            "reason_code_count": 2,
+            "uncertainty_flag_count": 1,
+        },
+        "reason_codes": ["HAZARD_TIER_ELEVATED", "HAZARD_UNCERTAINTY_PRESENT"],
+        "model": {
+            "name": "merge_rev1",
+            "mode": "deterministic_advisory",
+            "decision_policy": "hazard_gate_v1",
+            "parameters": {
+                "merge_decision_caution_threshold": 0.2,
+                "merge_decision_block_threshold": 0.6,
+                "merge_decision_block_on_hazard_blocking_signals": True,
+            },
+        },
+        "provenance": {
+            "algorithm": "merge_decision_v1",
+            "deterministic": True,
+            "inputs": ["hazard_map.json"],
+            "model_version": "merge_rev1",
+        },
     },
     "evidence_bundle": {
         "schema_version": "v1",
@@ -485,7 +526,7 @@ def test_schema_accepts_valid_examples(kind: str) -> None:
 def test_schema_rejects_invalid_examples(kind: str) -> None:
     schemas = load_all_schemas()
     broken = copy.deepcopy(VALID_EXAMPLES[kind])
-    if kind in {"review_findings", "telemetry_matrix", "occupancy_snapshot", "capture_estimate", "hazard_map"}:
+    if kind in {"review_findings", "telemetry_matrix", "occupancy_snapshot", "capture_estimate", "hazard_map", "merge_decision"}:
         broken["run"].pop("run_id", None)
     else:
         broken.pop("run_id", None)

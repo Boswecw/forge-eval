@@ -1,6 +1,6 @@
 # Forge Eval System Documentation
 
-**Document version:** 1.1 (2026-03-06) — Implemented Pack K hazard stage and normalized to Forge Documentation Protocol v1
+**Document version:** 1.2 (2026-03-06) — Implemented Pack L merge decision stage and normalized to Forge Documentation Protocol v1
 **Protocol:** Forge Documentation Protocol v1
 
 This `doc/system/` tree uses explicit truth classes:
@@ -32,6 +32,7 @@ Assembly contract:
 | §14 | [14-occupancy-snapshot-stage.md](14-occupancy-snapshot-stage.md) | Pack I deterministic occupancy posterior (`psi_post`) |
 | §15 | [15-capture-estimate-stage.md](15-capture-estimate-stage.md) | Pack J deterministic hidden-defect estimation via Chao1 and ICE |
 | §16 | [16-hazard-map-stage.md](16-hazard-map-stage.md) | Pack K deterministic hazard mapping from risk, telemetry, occupancy, and capture pressure |
+| §17 | [17-merge-decision-stage.md](17-merge-decision-stage.md) | Pack L deterministic advisory merge decision from Pack K hazard evidence |
 
 ## Quick Assembly
 
@@ -47,7 +48,7 @@ bash doc/system/BUILD.sh   # Assembles all parts into doc/feSYSTEM.md
 
 ## Purpose
 
-`forge-eval` is a deterministic, fail-closed evaluation foundation implementing Packs A-K:
+`forge-eval` is a deterministic, fail-closed evaluation foundation implementing Packs A-L:
 
 - Pack A: Python scaffold, CLI, orchestration, error model.
 - Pack B: Rust evidence binary (`forge-evidence`) for canonical JSON/hash/hashchain primitives.
@@ -60,14 +61,15 @@ bash doc/system/BUILD.sh   # Assembles all parts into doc/feSYSTEM.md
 - Pack I: Deterministic occupancy posterior estimation (`psi_post`) with conservative null handling.
 - Pack J: Deterministic hidden-defect estimation (`capture_estimate`) with Chao1/ICE and conservative selection.
 - Pack K: Deterministic hazard assessment (`hazard_map`) combining structural risk, observed burden, residual occupancy concern, and hidden-defect pressure.
+- Pack L: Deterministic advisory merge decision (`merge_decision`) from Pack K hazard evidence.
 
 ## Current Pipeline Boundary
 
 Implemented path:
 
-`config -> risk_heatmap -> context_slices -> review_findings -> telemetry_matrix -> occupancy_snapshot -> capture_estimate -> hazard_map`
+`config -> risk_heatmap -> context_slices -> review_findings -> telemetry_matrix -> occupancy_snapshot -> capture_estimate -> hazard_map -> merge_decision`
 
-Planned downstream (not implemented here): merge decision, bundle assembly.
+Planned downstream (not implemented here): bundle assembly.
 
 ## Governing Principles
 
@@ -94,7 +96,8 @@ Planned downstream (not implemented here): merge decision, bundle assembly.
 8. Occupancy subsystem (`services/occupancy_priors.py`, `services/occupancy_model.py`, `services/occupancy_rows.py`, `services/occupancy_summary.py`)
 9. Hidden-defect subsystem (`services/capture_counts.py`, `services/chao1.py`, `services/ice.py`, `services/capture_selection.py`, `services/capture_summary.py`)
 10. Hazard subsystem (`services/hazard_model.py`, `services/hazard_rows.py`, `services/hazard_summary.py`)
-11. Evidence subsystem (Rust binary under `rust/forge-evidence`, Python wrapper in `evidence_cli.py`)
+11. Merge-decision subsystem (`services/merge_decision_model.py`, `services/merge_decision_reasons.py`, `services/merge_decision_summary.py`)
+12. Evidence subsystem (Rust binary under `rust/forge-evidence`, Python wrapper in `evidence_cli.py`)
 
 ## Runtime Flow (`forge-eval run`)
 
@@ -111,6 +114,7 @@ Planned downstream (not implemented here): merge decision, bundle assembly.
    - `occupancy_snapshot`
    - `capture_estimate`
    - `hazard_map`
+   - `merge_decision`
 7. Validate each stage artifact against strict schema.
 8. Write schema-valid artifacts to output directory.
 
@@ -128,7 +132,7 @@ Planned downstream (not implemented here): merge decision, bundle assembly.
 - Rust owns deterministic evidence primitives.
 - Cross-language integration is subprocess-based only.
 - No Python fallback implementation for evidence primitives.
-- Current A-K runtime boundary: the stage pipeline does not invoke `evidence_cli.py`; Rust evidence remains a verified helper subsystem until a later slice wires it into emitted artifact handling.
+- Current A-L runtime boundary: the stage pipeline does not invoke `evidence_cli.py`; Rust evidence remains a verified helper subsystem until a later slice wires it into emitted artifact handling.
 
 ---
 
@@ -196,6 +200,7 @@ repo/
       occupancy_snapshot.py
       capture_estimate.py
       hazard_map.py
+      merge_decision.py
     services/
       git_diff.py
       risk_analysis.py
@@ -219,6 +224,9 @@ repo/
       hazard_model.py
       hazard_rows.py
       hazard_summary.py
+      merge_decision_model.py
+      merge_decision_reasons.py
+      merge_decision_summary.py
     schemas/
       *.schema.json
     validation/
@@ -237,6 +245,7 @@ repo/
     test_occupancy_snapshot_stage.py
     test_capture_estimate_stage.py
     test_hazard_map_stage.py
+    test_merge_decision_stage.py
     test_finding_normalizer.py
     test_defect_identity.py
     test_schemas.py
@@ -261,7 +270,7 @@ repo/
 ## Responsibility Split
 
 - `stages/`: stage entrypoints that produce artifact objects.
-- `services/`: deterministic helpers (git access, scoring, range math, extraction, finding normalization, defect identity, reviewer health/applicability, telemetry matrix building, occupancy prior/posterior computation, hidden-defect counting/estimation).
+- `services/`: deterministic helpers (git access, scoring, range math, extraction, finding normalization, defect identity, reviewer health/applicability, telemetry matrix building, occupancy prior/posterior computation, hidden-defect counting/estimation, hazard scoring, advisory merge-decision reasoning).
 - `reviewers/`: deterministic reviewer adapters and execution wrappers.
 - `validation/`: schema lookup + JSON-schema enforcement.
 - `schemas/`: locked contracts for implemented and future artifacts.
@@ -295,6 +304,7 @@ Default stage order and enabled set:
 5. `occupancy_snapshot`
 6. `capture_estimate`
 7. `hazard_map`
+8. `merge_decision`
 
 Stage dependency constraints:
 
@@ -304,8 +314,9 @@ Stage dependency constraints:
 - `occupancy_snapshot` requires `telemetry_matrix`
 - `capture_estimate` requires `occupancy_snapshot`
 - `hazard_map` requires `capture_estimate`
+- `merge_decision` requires `hazard_map`
 
-## Pack F/G/H/I/J/K Config Keys (Current)
+## Pack F/G/H/I/J/K/L Config Keys (Current)
 
 - `context_radius_lines` (int, >=0)
 - `merge_gap_lines` (int, >=0)
@@ -339,6 +350,10 @@ Stage dependency constraints:
 - `hazard_support_uplift_strength` (float in `[0,1]`)
 - `hazard_uncertainty_boost` (float in `[0,1]`)
 - `hazard_blocking_threshold` (float in `[0,1]`)
+- `merge_decision_model_version` (`merge_rev1`)
+- `merge_decision_caution_threshold` (float in `[0,1]`)
+- `merge_decision_block_threshold` (float in `[0,1]`)
+- `merge_decision_block_on_hazard_blocking_signals` (bool)
 
 ## Artifacts Written by `run`
 
@@ -350,6 +365,7 @@ Stage dependency constraints:
 - `occupancy_snapshot.json` (if enabled)
 - `capture_estimate.json` (if enabled)
 - `hazard_map.json` (if enabled)
+- `merge_decision.json` (if enabled)
 
 All Python-written artifacts use deterministic JSON encoding:
 
@@ -400,7 +416,7 @@ Environment override:
 ## Current Runtime Posture
 
 - `forge-evidence` and `evidence_cli.py` are implemented, directly callable, and covered by Rust/Python tests.
-- Current A-K pipeline stages do not invoke the evidence wrapper during `forge-eval run` or `forge-eval validate`.
+- Current A-L pipeline stages do not invoke the evidence wrapper during `forge-eval run` or `forge-eval validate`.
 - This is the active boundary by design in the current repo state:
   - evidence primitives are available
   - mainline artifact emission remains Python-owned
@@ -497,7 +513,7 @@ For each changed target file (non-deleted, extension-allowed, non-excluded):
 
 # §9 - Schemas, Validation, and Error Model
 
-## Schema Set (Pack D + Pack G/H/I/J/K Extensions)
+## Schema Set (Pack D + Pack G/H/I/J/K/L Extensions)
 
 Implemented schema files:
 
@@ -555,6 +571,13 @@ All schemas are Draft 2020-12 and strict at root (`additionalProperties: false`)
 - explicit uncertainty and blocking reason flags
 - provenance locked to risk + telemetry + occupancy + capture inputs and `hazard_rev1`
 
+`merge_decision.schema.json` enforces Pack L layout:
+
+- `artifact_version`, `kind`, `run`, `inputs`, `decision`, `summary`, `reason_codes`, `model`, `provenance`
+- advisory decision result locked to `allow | caution | block`
+- deterministic reason-code vocabulary for blocking and cautionary Pack K-derived conditions
+- provenance locked to `hazard_map.json` and `merge_rev1`
+
 ## Validation Behavior
 
 - Schema loader fails on unknown artifact kind or missing schema files.
@@ -583,7 +606,7 @@ CLI exits non-zero on any structured error.
 
 # §10 - Testing and Determinism
 
-## Python Test Coverage (Packs A-K)
+## Python Test Coverage (Packs A-L)
 
 - CLI smoke + failure behavior
 - config normalization and rejection cases
@@ -603,9 +626,11 @@ CLI exits non-zero on any structured error.
 - capture fail-closed behavior for inconsistent defect sets, invalid selection policy, and mismatched cross-artifact counts
 - hazard map stage behavior (row hazard calculation, tier mapping, conservative summary aggregation)
 - hazard fail-closed behavior for missing risk mapping, run/commit mismatch, inconsistent defect sets, and invalid model version
+- merge decision stage behavior (allow/caution/block routing, stable reason codes, hazard-only advisory boundary)
+- merge decision fail-closed behavior for missing hazard input, run mismatch, invalid hazard tier, and unsupported model version
 - golden-file checks for context slices
 - repeatability checks using byte-equality of serialized artifacts
-- integration proof that pipeline emits deterministic `review_findings.json`, `telemetry_matrix.json`, `occupancy_snapshot.json`, `capture_estimate.json`, and `hazard_map.json`
+- integration proof that pipeline emits deterministic `review_findings.json`, `telemetry_matrix.json`, `occupancy_snapshot.json`, `capture_estimate.json`, `hazard_map.json`, and `merge_decision.json`
 
 ## Rust Test Coverage (Pack B)
 
@@ -671,7 +696,7 @@ export FORGE_EVIDENCE_BIN=/abs/path/to/rust/forge-evidence/target/debug/forge-ev
 Current evidence boundary:
 
 - the Rust evidence binary is verified and callable
-- `forge-eval run` / `forge-eval validate` do not currently invoke it in the main A-K stage path
+- `forge-eval run` / `forge-eval validate` do not currently invoke it in the main A-L stage path
 
 ## Execute Pipeline
 
@@ -701,7 +726,8 @@ forge-eval validate --artifacts /abs/path/to/artifacts
 7. Confirm occupancy rows are bounded (`psi_post` in `[0,1]`) in `occupancy_snapshot.json`.
 8. Confirm capture outputs include Chao1, ICE, and selected hidden estimate in `capture_estimate.json`.
 9. Confirm hazard output includes bounded `hazard_score`, deterministic `hazard_tier`, and explicit uncertainty flags in `hazard_map.json`.
-10. Run Python and Rust tests before merge.
+10. Confirm merge decision output includes advisory `allow | caution | block` result and deterministic `reason_codes` in `merge_decision.json`.
+11. Run Python and Rust tests before merge.
 
 ## Guardrails for Next Packs
 
@@ -713,6 +739,7 @@ forge-eval validate --artifacts /abs/path/to/artifacts
 6. Preserve occupancy conservatism: weak/null-heavy coverage must not be treated as strong suppression.
 7. Preserve capture conservatism: singleton-heavy sparse evidence must not collapse to low hidden-defect estimates.
 8. Preserve hazard conservatism: hidden-defect pressure and uncertainty must not be converted into a clean-looking change set.
+9. Preserve merge-decision narrowness: Pack L must consume hazard evidence conservatively and remain advisory; evidence bundle assembly stays in Pack M.
 
 ---
 
@@ -991,6 +1018,7 @@ Input:
 Output:
 
 - `hazard_map.json` (schema kind: `hazard_map`)
+- Downstream consumer: Pack L `merge_decision` stage
 
 ## Execution Model
 
@@ -1051,3 +1079,93 @@ Summary hazard remains bounded and interpretable:
 - row flags and summary flags are emitted in deterministic order
 - rounding is fixed by `hazard_round_digits`
 - repeated identical inputs must produce byte-identical `hazard_map.json`
+
+---
+
+# §17 - Pack L: Merge Decision Stage
+
+## Stage Contract
+
+Input:
+
+- `hazard_map` artifact (required)
+- normalized merge-decision config block (required)
+
+Output:
+
+- `merge_decision.json` (schema kind: `merge_decision`)
+
+## Execution Model
+
+1. Validate Pack K hazard artifact shape and enforce deterministic run alignment.
+2. Load the locked merge-decision model (`merge_rev1`).
+3. Evaluate Pack K summary fields with a deterministic rule table.
+4. Emit advisory `allow | caution | block` decision plus stable machine-readable reason codes.
+5. Validate the emitted artifact against the strict schema.
+
+## Model Rules (Rev 1)
+
+- model version: `merge_rev1`
+- decision policy: `hazard_gate_v1`
+- decision family: `allow`, `caution`, `block`
+
+Blocking rules:
+
+- configured hazard blocking signal present
+- hazard tier `high` or `critical`
+- hazard score at or above configured block threshold
+
+Caution rules:
+
+- hazard tier `guarded` or `elevated`
+- hazard score at or above configured caution threshold
+- Pack K uncertainty flags present
+- elevated hidden pressure
+
+Decision selection is deterministic:
+
+- any blocking rule -> `block`
+- else any caution rule -> `caution`
+- else -> `allow`
+
+## Reason Codes
+
+Pack L emits stable machine-readable reason codes from a locked vocabulary:
+
+- `HAZARD_BLOCKING_SIGNAL_PRESENT`
+- `HAZARD_TIER_CRITICAL`
+- `HAZARD_TIER_HIGH`
+- `HAZARD_SCORE_AT_OR_ABOVE_BLOCK_THRESHOLD`
+- `HAZARD_TIER_ELEVATED`
+- `HAZARD_TIER_GUARDED`
+- `HAZARD_SCORE_AT_OR_ABOVE_CAUTION_THRESHOLD`
+- `HAZARD_UNCERTAINTY_PRESENT`
+- `HAZARD_HIDDEN_PRESSURE_ELEVATED`
+
+## Boundary
+
+Pack L is advisory merge posture only.
+
+It does not:
+
+- perform git operations
+- execute or recommend a merge command
+- assemble evidence bundles
+- invoke the Rust evidence CLI in the active runtime path
+- mutate upstream artifacts
+
+## Fail-Closed Behavior
+
+- missing hazard artifact -> stage failure
+- run or ref mismatch between pipeline and hazard artifact -> stage failure
+- unsupported `merge_decision_model_version` -> stage failure
+- out-of-range or misordered thresholds -> stage failure
+- unsupported hazard tier or malformed Pack K summary fields -> stage failure
+- schema validation failure -> run failure
+
+## Determinism Notes
+
+- decision rules are evaluated in fixed order
+- reason codes are emitted in stable canonical order
+- no clock fields appear in the artifact
+- repeated identical inputs must produce byte-identical `merge_decision.json`

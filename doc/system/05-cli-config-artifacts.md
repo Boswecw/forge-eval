@@ -24,6 +24,7 @@ Default stage order and enabled set:
 5. `occupancy_snapshot`
 6. `capture_estimate`
 7. `hazard_map`
+8. `merge_decision`
 
 Stage dependency constraints:
 
@@ -33,8 +34,9 @@ Stage dependency constraints:
 - `occupancy_snapshot` requires `telemetry_matrix`
 - `capture_estimate` requires `occupancy_snapshot`
 - `hazard_map` requires `capture_estimate`
+- `merge_decision` requires `hazard_map`
 
-## Pack F/G/H/I/J/K Config Keys (Current)
+## Pack F/G/H/I/J/K/L Config Keys (Current)
 
 - `context_radius_lines` (int, >=0)
 - `merge_gap_lines` (int, >=0)
@@ -68,6 +70,10 @@ Stage dependency constraints:
 - `hazard_support_uplift_strength` (float in `[0,1]`)
 - `hazard_uncertainty_boost` (float in `[0,1]`)
 - `hazard_blocking_threshold` (float in `[0,1]`)
+- `merge_decision_model_version` (`merge_rev1`)
+- `merge_decision_caution_threshold` (float in `[0,1]`)
+- `merge_decision_block_threshold` (float in `[0,1]`)
+- `merge_decision_block_on_hazard_blocking_signals` (bool)
 
 ## Artifacts Written by `run`
 
@@ -79,6 +85,7 @@ Stage dependency constraints:
 - `occupancy_snapshot.json` (if enabled)
 - `capture_estimate.json` (if enabled)
 - `hazard_map.json` (if enabled)
+- `merge_decision.json` (if enabled)
 
 All Python-written artifacts use deterministic JSON encoding:
 
