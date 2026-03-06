@@ -1,6 +1,18 @@
 # Forge Eval System Documentation
 
-> BDS Documentation Protocol v1.0 - modular reference for deterministic Packs A-J
+**Document version:** 1.0 (2026-03-06) — Normalized to Forge Documentation Protocol v1
+**Protocol:** Forge Documentation Protocol v1
+
+This `doc/system/` tree uses explicit truth classes:
+- Canonical facts define Forge Eval's CLI boundary, stage order, artifact contracts, and fail-closed doctrine.
+- Snapshot facts define audit-derived counts such as tests, reviewer inventories, or implementation surface metrics.
+
+Repo deviation:
+- Forge Eval is a standalone CLI subsystem with local artifacts, not a resident HTTP service in the current runtime.
+
+Assembly contract:
+- Command: `bash doc/system/BUILD.sh`
+- Output: `doc/feSYSTEM.md`
 
 | Part | File | Contents |
 |------|------|----------|
@@ -895,5 +907,3 @@ When ICE coverage collapses or rare-incidence support is too weak, Pack J uses a
 - histogram keys are emitted as sorted decimal strings.
 - estimator rounding is fixed by `capture_round_digits`.
 - selected hidden estimate is explicit and conservative.
-
----

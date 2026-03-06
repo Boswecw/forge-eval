@@ -2,6 +2,14 @@
 
 Deterministic, schema-validated, fail-closed evaluation subsystem for the Forge ecosystem.
 
+## Documentation Contract
+
+- **Repo type:** Standalone CLI subsystem
+- **Authority boundary:** Deterministic evaluation of sibling repositories and local artifact emission; not governance authority and not the durable truth store
+- **Deep reference:** `doc/system/_index.md`, `doc/feSYSTEM.md`, `../../docs/canonical/ecosystem_canonical.md`
+- **README role:** CLI entrypoint overview
+- **Truth note:** Pack listings and emitted-artifact inventory in this README describe the current implementation snapshot unless explicitly marked as canonical invariants
+
 Forge Eval is an **independent repository** within the local Forge ecosystem workspace. It evaluates other independent sibling repositories as target repos. It is not a child subsystem of DataForge, NeuroForge, or forge-smithy.
 
 Current implemented packs:
