@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "run_id", "reviewers", "findings", "provenance"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "v1"},
+    "kind": {"type": "string", "const": "review_findings"},
+    "run_id": {"type": "string", "minLength": 1},
+    "reviewers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reviewer_id", "reviewer_type"],
+        "properties": {
+          "reviewer_id": {"type": "string", "minLength": 1},
+          "reviewer_type": {"type": "string", "minLength": 1},
+          "model": {"type": ["string", "null"]},
+          "version": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "finding_id",
+          "defect_key",
+          "target_id",
+          "slice_id",
+          "file_path",
+          "start_line",
+          "end_line",
+          "severity",
+          "confidence",
+          "summary",
+          "reviewer_id"
+        ],
+        "properties": {
+          "finding_id": {"type": "string", "minLength": 1},
+          "defect_key": {"type": "string", "minLength": 1},
+          "target_id": {"type": "string", "minLength": 1},
+          "slice_id": {"type": "string", "minLength": 1},
+          "file_path": {"type": "string", "minLength": 1},
+          "start_line": {"type": "integer", "minimum": 1},
+          "end_line": {"type": "integer", "minimum": 1},
+          "severity": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+          "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+          "summary": {"type": "string", "minLength": 1},
+          "reviewer_id": {"type": "string", "minLength": 1},
+          "evidence_ref": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm"],
+      "properties": {
+        "algorithm": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

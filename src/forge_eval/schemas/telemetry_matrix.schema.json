@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "run_id",
+    "methods",
+    "targets",
+    "matrix",
+    "method_health",
+    "fail_closed",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "const": "v1"},
+    "kind": {"type": "string", "const": "telemetry_matrix"},
+    "run_id": {"type": "string", "minLength": 1},
+    "methods": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "targets": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "matrix": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "anyOf": [
+            {"type": "integer", "enum": [0, 1]},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "method_health": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["method_id", "status"],
+        "properties": {
+          "method_id": {"type": "string", "minLength": 1},
+          "status": {"type": "string", "enum": ["OK", "FAILED", "SKIPPED"]},
+          "error_summary": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "avg_pairwise_corr": {"type": ["number", "null"]},
+    "k_eff": {"type": ["number", "null"]},
+    "fail_closed": {"type": "boolean"},
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm"],
+      "properties": {
+        "algorithm": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

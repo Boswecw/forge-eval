@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "run_id",
+    "calibration_status",
+    "priors",
+    "posteriors",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "const": "v1"},
+    "kind": {"type": "string", "const": "calibration_report"},
+    "run_id": {"type": "string", "minLength": 1},
+    "calibration_status": {"type": "string", "enum": ["not_run", "ran", "failed"]},
+    "priors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["method_id", "p_detect"],
+        "properties": {
+          "method_id": {"type": "string", "minLength": 1},
+          "p_detect": {"type": "number", "minimum": 0, "maximum": 1}
+        }
+      }
+    },
+    "posteriors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["method_id", "p_detect"],
+        "properties": {
+          "method_id": {"type": "string", "minLength": 1},
+          "p_detect": {"type": "number", "minimum": 0, "maximum": 1}
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm"],
+      "properties": {
+        "algorithm": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

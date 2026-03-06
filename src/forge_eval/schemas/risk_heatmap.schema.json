@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "run_id",
+    "repo_path",
+    "base_ref",
+    "head_ref",
+    "weights",
+    "targets",
+    "summary",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "const": "v1"},
+    "kind": {"type": "string", "const": "risk_heatmap"},
+    "run_id": {"type": "string", "minLength": 1},
+    "repo_path": {"type": "string", "minLength": 1},
+    "base_ref": {"type": "string", "minLength": 1},
+    "head_ref": {"type": "string", "minLength": 1},
+    "weights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["w_change_magnitude", "w_centrality", "w_churn"],
+      "properties": {
+        "w_churn": {"type": "number", "minimum": 0},
+        "w_centrality": {"type": "number", "minimum": 0},
+        "w_change_magnitude": {"type": "number", "minimum": 0}
+      }
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "target_id",
+          "file_path",
+          "churn",
+          "centrality",
+          "change_magnitude",
+          "risk_raw",
+          "risk_score",
+          "reasons"
+        ],
+        "properties": {
+          "target_id": {"type": "string", "minLength": 1},
+          "file_path": {"type": "string", "minLength": 1},
+          "churn": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["added_lines", "deleted_lines", "normalized"],
+            "properties": {
+              "added_lines": {"type": "integer", "minimum": 0},
+              "deleted_lines": {"type": "integer", "minimum": 0},
+              "normalized": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          },
+          "centrality": {"type": "number", "minimum": 0, "maximum": 1},
+          "change_magnitude": {"type": "number", "minimum": 0, "maximum": 1},
+          "risk_raw": {"type": "number", "minimum": 0},
+          "risk_score": {"type": "number", "minimum": 0, "maximum": 1},
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["metric", "value"],
+              "properties": {
+                "metric": {"type": "string", "minLength": 1},
+                "value": {"type": "number"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_count", "min_risk_score", "max_risk_score"],
+      "properties": {
+        "target_count": {"type": "integer", "minimum": 0},
+        "min_risk_score": {"type": "number", "minimum": 0, "maximum": 1},
+        "max_risk_score": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "deterministic"],
+      "properties": {
+        "algorithm": {"type": "string", "minLength": 1},
+        "deterministic": {"type": "boolean"}
+      }
+    }
+  }
+}

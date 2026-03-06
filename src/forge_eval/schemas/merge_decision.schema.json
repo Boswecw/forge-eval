@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "run_id", "decision", "rationale", "thresholds", "provenance"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "v1"},
+    "kind": {"type": "string", "const": "merge_decision"},
+    "run_id": {"type": "string", "minLength": 1},
+    "decision": {"type": "string", "enum": ["MERGE", "BLOCK", "REVIEW"]},
+    "rationale": {"type": "string", "minLength": 1},
+    "thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hazard_threshold", "occupancy_threshold"],
+      "properties": {
+        "hazard_threshold": {"type": "number", "minimum": 0, "maximum": 1},
+        "occupancy_threshold": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm"],
+      "properties": {
+        "algorithm": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

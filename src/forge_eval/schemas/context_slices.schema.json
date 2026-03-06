@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "run_id",
+    "repo_path",
+    "base_ref",
+    "head_ref",
+    "config",
+    "slices",
+    "summary",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "const": "v1"},
+    "kind": {"type": "string", "const": "context_slices"},
+    "run_id": {"type": "string", "minLength": 1},
+    "repo_path": {"type": "string", "minLength": 1},
+    "base_ref": {"type": "string", "minLength": 1},
+    "head_ref": {"type": "string", "minLength": 1},
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "context_radius_lines",
+        "merge_gap_lines",
+        "max_slices_per_target",
+        "max_lines_per_slice",
+        "max_total_lines",
+        "fail_on_slice_truncation",
+        "binary_file_policy"
+      ],
+      "properties": {
+        "context_radius_lines": {"type": "integer", "minimum": 0},
+        "merge_gap_lines": {"type": "integer", "minimum": 0},
+        "max_slices_per_target": {"type": "integer", "minimum": 1},
+        "max_lines_per_slice": {"type": "integer", "minimum": 1},
+        "max_total_lines": {"type": "integer", "minimum": 1},
+        "fail_on_slice_truncation": {"type": "boolean"},
+        "binary_file_policy": {"type": "string", "enum": ["fail", "ignore"]}
+      }
+    },
+    "slices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "slice_id",
+          "file_path",
+          "start_line",
+          "end_line",
+          "changed_line_count",
+          "total_line_count",
+          "content",
+          "origin"
+        ],
+        "properties": {
+          "slice_id": {"type": "string", "minLength": 1},
+          "file_path": {"type": "string", "minLength": 1},
+          "start_line": {"type": "integer", "minimum": 1},
+          "end_line": {"type": "integer", "minimum": 1},
+          "changed_line_count": {"type": "integer", "minimum": 0},
+          "total_line_count": {"type": "integer", "minimum": 1},
+          "content": {"type": "string"},
+          "origin": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source", "base_ref", "head_ref", "changed_ranges"],
+            "properties": {
+              "source": {"type": "string", "const": "git_diff_head_version"},
+              "base_ref": {"type": "string", "minLength": 1},
+              "head_ref": {"type": "string", "minLength": 1},
+              "changed_ranges": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "minItems": 2,
+                  "maxItems": 2,
+                  "prefixItems": [
+                    {"type": "integer", "minimum": 1},
+                    {"type": "integer", "minimum": 1}
+                  ],
+                  "items": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_count", "slice_count", "total_line_count"],
+      "properties": {
+        "target_count": {"type": "integer", "minimum": 0},
+        "slice_count": {"type": "integer", "minimum": 0},
+        "total_line_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "head_version_content", "deterministic"],
+      "properties": {
+        "algorithm": {"type": "string", "minLength": 1},
+        "head_version_content": {"type": "boolean"},
+        "deterministic": {"type": "boolean"}
+      }
+    }
+  }
+}

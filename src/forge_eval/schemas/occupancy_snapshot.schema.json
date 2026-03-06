@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "run_id", "per_target", "provenance"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "v1"},
+    "kind": {"type": "string", "const": "occupancy_snapshot"},
+    "run_id": {"type": "string", "minLength": 1},
+    "per_target": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "target_id",
+          "risk_bucket",
+          "psi_prior",
+          "psi_post",
+          "detected_any",
+          "methods_included"
+        ],
+        "properties": {
+          "target_id": {"type": "string", "minLength": 1},
+          "risk_bucket": {"type": "string", "enum": ["low", "medium", "high"]},
+          "psi_prior": {"type": "number", "minimum": 0, "maximum": 1},
+          "psi_post": {"type": "number", "minimum": 0, "maximum": 1},
+          "detected_any": {"type": "boolean"},
+          "methods_included": {"type": "array", "items": {"type": "string", "minLength": 1}}
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm"],
+      "properties": {
+        "algorithm": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "run_id",
+    "estimate",
+    "method_count",
+    "target_count",
+    "confidence_interval",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "const": "v1"},
+    "kind": {"type": "string", "const": "capture_estimate"},
+    "run_id": {"type": "string", "minLength": 1},
+    "estimate": {"type": "number", "minimum": 0},
+    "method_count": {"type": "integer", "minimum": 1},
+    "target_count": {"type": "integer", "minimum": 1},
+    "confidence_interval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lower", "upper"],
+      "properties": {
+        "lower": {"type": "number", "minimum": 0},
+        "upper": {"type": "number", "minimum": 0}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm"],
+      "properties": {
+        "algorithm": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}
