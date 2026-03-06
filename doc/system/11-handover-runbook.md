@@ -14,11 +14,33 @@ cd ../../
 pip install -e .
 ```
 
+Offline dev install path when dependencies are already provisioned in the environment:
+
+```bash
+pip install --no-build-isolation -e .
+```
+
+Current verified lower bound from the live repo test surface:
+
+- `jsonschema>=4.10.3`
+- `PyYAML>=6.0.1`
+
+Reason for the offline flag:
+
+- plain `pip install -e .` uses an isolated build environment
+- offline installs will fail unless build requirements are available from an index or wheel cache
+- `--no-build-isolation` is the truthful local/offline path when build dependencies are already present
+
 If the evidence binary is not on `PATH`:
 
 ```bash
 export FORGE_EVIDENCE_BIN=/abs/path/to/rust/forge-evidence/target/debug/forge-evidence
 ```
+
+Current evidence boundary:
+
+- the Rust evidence binary is verified and callable
+- `forge-eval run` / `forge-eval validate` do not currently invoke it in the main A-J stage path
 
 ## Execute Pipeline
 

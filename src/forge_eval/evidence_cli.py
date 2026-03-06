@@ -10,7 +10,11 @@ from forge_eval.errors import EvidenceCliError
 
 
 class EvidenceCli:
-    """Fail-closed subprocess wrapper for the Rust forge-evidence binary."""
+    """Fail-closed subprocess wrapper for the Rust forge-evidence binary.
+
+    Current A-J runtime posture: this wrapper is verified and callable, but
+    `stage_runner.py` does not invoke it in the main stage pipeline yet.
+    """
 
     def __init__(self, binary: str | None = None) -> None:
         self.binary = binary or os.environ.get("FORGE_EVIDENCE_BIN", "forge-evidence")

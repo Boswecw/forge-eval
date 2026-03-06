@@ -17,8 +17,46 @@ fn make_temp_dir(prefix: &str) -> PathBuf {
     dir
 }
 
+fn binary_name() -> &'static str {
+    if cfg!(windows) {
+        "forge-evidence.exe"
+    } else {
+        "forge-evidence"
+    }
+}
+
+fn resolve_bin() -> PathBuf {
+    if let Some(candidate) = option_env!("CARGO_BIN_EXE_forge-evidence") {
+        let path = PathBuf::from(candidate);
+        if path.exists() {
+            return path;
+        }
+    }
+
+    if let Ok(current_exe) = env::current_exe() {
+        if let Some(debug_dir) = current_exe.parent().and_then(|deps| deps.parent()) {
+            let path = debug_dir.join(binary_name());
+            if path.exists() {
+                return path;
+            }
+        }
+    }
+
+    let manifest_target = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("debug")
+        .join(binary_name());
+    if manifest_target.exists() {
+        return manifest_target;
+    }
+
+    panic!(
+        "forge-evidence binary not found via CARGO_BIN_EXE_forge-evidence, current_exe fallback, or manifest target dir"
+    );
+}
+
 fn run_ok(args: &[&str]) -> Vec<u8> {
-    let bin = env!("CARGO_BIN_EXE_forge-evidence");
+    let bin = resolve_bin();
     let output = Command::new(bin).args(args).output().expect("run binary");
     assert!(
         output.status.success(),

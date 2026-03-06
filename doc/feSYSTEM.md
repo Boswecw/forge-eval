@@ -124,6 +124,7 @@ Planned downstream (not implemented here): hazard, merge decision, bundle assemb
 - Rust owns deterministic evidence primitives.
 - Cross-language integration is subprocess-based only.
 - No Python fallback implementation for evidence primitives.
+- Current A-J runtime boundary: the stage pipeline does not invoke `evidence_cli.py`; Rust evidence remains a verified helper subsystem until a later slice wires it into emitted artifact handling.
 
 ---
 
@@ -376,6 +377,15 @@ Environment override:
 
 - `FORGE_EVIDENCE_BIN` can point to a non-PATH binary.
 
+## Current Runtime Posture
+
+- `forge-evidence` and `evidence_cli.py` are implemented, directly callable, and covered by Rust/Python tests.
+- Current A-J pipeline stages do not invoke the evidence wrapper during `forge-eval run` or `forge-eval validate`.
+- This is the active boundary by design in the current repo state:
+  - evidence primitives are available
+  - mainline artifact emission remains Python-owned
+  - downstream evidence-bundle assembly remains out of scope
+
 ---
 
 # §7 - Pack E: Risk Heatmap Stage
@@ -604,11 +614,33 @@ cd ../../
 pip install -e .
 ```
 
+Offline dev install path when dependencies are already provisioned in the environment:
+
+```bash
+pip install --no-build-isolation -e .
+```
+
+Current verified lower bound from the live repo test surface:
+
+- `jsonschema>=4.10.3`
+- `PyYAML>=6.0.1`
+
+Reason for the offline flag:
+
+- plain `pip install -e .` uses an isolated build environment
+- offline installs will fail unless build requirements are available from an index or wheel cache
+- `--no-build-isolation` is the truthful local/offline path when build dependencies are already present
+
 If the evidence binary is not on `PATH`:
 
 ```bash
 export FORGE_EVIDENCE_BIN=/abs/path/to/rust/forge-evidence/target/debug/forge-evidence
 ```
+
+Current evidence boundary:
+
+- the Rust evidence binary is verified and callable
+- `forge-eval run` / `forge-eval validate` do not currently invoke it in the main A-J stage path
 
 ## Execute Pipeline
 

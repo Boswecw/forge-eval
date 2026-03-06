@@ -35,3 +35,12 @@ Wrapper behavior is fail-closed:
 Environment override:
 
 - `FORGE_EVIDENCE_BIN` can point to a non-PATH binary.
+
+## Current Runtime Posture
+
+- `forge-evidence` and `evidence_cli.py` are implemented, directly callable, and covered by Rust/Python tests.
+- Current A-J pipeline stages do not invoke the evidence wrapper during `forge-eval run` or `forge-eval validate`.
+- This is the active boundary by design in the current repo state:
+  - evidence primitives are available
+  - mainline artifact emission remains Python-owned
+  - downstream evidence-bundle assembly remains out of scope

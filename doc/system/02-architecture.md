@@ -44,3 +44,4 @@
 - Rust owns deterministic evidence primitives.
 - Cross-language integration is subprocess-based only.
 - No Python fallback implementation for evidence primitives.
+- Current A-J runtime boundary: the stage pipeline does not invoke `evidence_cli.py`; Rust evidence remains a verified helper subsystem until a later slice wires it into emitted artifact handling.

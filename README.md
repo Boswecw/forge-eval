@@ -62,6 +62,18 @@ Use `FORGE_EVIDENCE_BIN` to point the Python wrapper to the binary if it is not 
 pip install -e .
 ```
 
+Offline local dev note:
+
+- `pyproject.toml` currently requires `jsonschema>=4.10.3` and `PyYAML>=6.0.1`.
+- In a networked environment, plain `pip install -e .` is the normal path.
+- In an offline environment where those dependencies are already present from system packages or a pre-provisioned venv, use:
+
+```bash
+pip install --no-build-isolation -e .
+```
+
+This avoids pip's isolated build environment trying to download build requirements.
+
 ## Run pipeline
 
 ```bash
@@ -110,8 +122,19 @@ risk_heatmap -> context_slices -> review_findings -> telemetry_matrix -> occupan
 
 Forge Eval Packs A–J are implemented in the current repo state.
 
-A–F were operationally verified on a real target repo. Pack G was integrated and smoke-validated. Pack H telemetry semantics are covered by unit and integration tests, including fail-closed and tri-state behavior. Pack I occupancy semantics are covered by unit/integration tests and real local smoke runs. Pack J hidden-defect estimation is covered by stage tests, integration determinism, and real local smoke runs.
+The current A–J runtime path has been verified on a real local target repo:
+
+- emitted artifact set: `config.resolved.json`, `risk_heatmap.json`, `context_slices.json`, `review_findings.json`, `telemetry_matrix.json`, `occupancy_snapshot.json`, `capture_estimate.json`
+- `forge-eval validate` passed on the emitted artifacts
+- repeated identical runs were byte-identical across all primary artifacts
+- fail-closed probes were confirmed for config, validation, reviewer-failure, and cross-artifact mismatch cases
+
+Verification report:
+
+- `reports/forge_eval_a_to_j_verification_report_rev1.md`
+
+Downstream packs such as hazard, merge decision, and evidence bundle assembly are still not implemented.
 
 ## Important note on Rust evidence
 
-The Rust evidence subsystem is implemented and wrapped, but live runtime activation in the main evaluation path is still a follow-on hardening item unless explicitly wired into emitted artifact handling.
+The Rust evidence subsystem is implemented, callable, and tested, but it is not part of the main A–J stage pipeline in the current runtime. It remains a verified helper boundary until a later slice explicitly wires evidence primitives into emitted artifact handling or downstream bundle assembly.
