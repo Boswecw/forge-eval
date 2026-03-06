@@ -2,30 +2,259 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "kind", "run_id", "hazards", "provenance"],
+  "required": [
+    "artifact_version",
+    "kind",
+    "run",
+    "inputs",
+    "summary",
+    "rows",
+    "model",
+    "provenance"
+  ],
   "properties": {
-    "schema_version": {"type": "string", "const": "v1"},
+    "artifact_version": {"type": "integer", "const": 1},
     "kind": {"type": "string", "const": "hazard_map"},
-    "run_id": {"type": "string", "minLength": 1},
-    "hazards": {
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "repo_path",
+        "base_ref",
+        "head_ref",
+        "base_commit",
+        "head_commit",
+        "risk_artifact",
+        "telemetry_artifact",
+        "occupancy_artifact",
+        "capture_artifact"
+      ],
+      "properties": {
+        "run_id": {"type": "string", "minLength": 1},
+        "repo_path": {"type": "string", "minLength": 1},
+        "base_ref": {"type": "string", "minLength": 1},
+        "head_ref": {"type": "string", "minLength": 1},
+        "base_commit": {"type": "string", "minLength": 1},
+        "head_commit": {"type": "string", "minLength": 1},
+        "risk_artifact": {"type": "string", "const": "risk_heatmap.json"},
+        "telemetry_artifact": {"type": "string", "const": "telemetry_matrix.json"},
+        "occupancy_artifact": {"type": "string", "const": "occupancy_snapshot.json"},
+        "capture_artifact": {"type": "string", "const": "capture_estimate.json"}
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "risk_artifact",
+        "telemetry_artifact",
+        "occupancy_artifact",
+        "capture_artifact",
+        "hidden_selection_policy",
+        "round_digits"
+      ],
+      "properties": {
+        "mode": {"type": "string", "const": "deterministic_conservative"},
+        "risk_artifact": {"type": "string", "const": "risk_heatmap.json"},
+        "telemetry_artifact": {"type": "string", "const": "telemetry_matrix.json"},
+        "occupancy_artifact": {"type": "string", "const": "occupancy_snapshot.json"},
+        "capture_artifact": {"type": "string", "const": "capture_estimate.json"},
+        "hidden_selection_policy": {"type": "string", "const": "max_hidden"},
+        "round_digits": {"type": "integer", "minimum": 0, "maximum": 12}
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hazard_score",
+        "hazard_tier",
+        "defect_count",
+        "observed_defects",
+        "selected_hidden",
+        "selected_total",
+        "mean_psi_post",
+        "max_risk_score",
+        "max_hazard_contribution",
+        "hidden_pressure",
+        "base_hazard_score",
+        "hidden_uplift",
+        "uncertainty_uplift",
+        "blocking_signals_present",
+        "blocking_reason_flags",
+        "uncertainty_flags"
+      ],
+      "properties": {
+        "hazard_score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "hazard_tier": {"type": "string", "enum": ["low", "guarded", "elevated", "high", "critical"]},
+        "defect_count": {"type": "integer", "minimum": 0},
+        "observed_defects": {"type": "integer", "minimum": 0},
+        "selected_hidden": {"type": "number", "minimum": 0.0},
+        "selected_total": {"type": "number", "minimum": 0.0},
+        "mean_psi_post": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "max_risk_score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "max_hazard_contribution": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "hidden_pressure": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "base_hazard_score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "hidden_uplift": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "uncertainty_uplift": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "blocking_signals_present": {"type": "boolean"},
+        "blocking_reason_flags": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "uncertainty_flags": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "rows": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["target_id", "lambda_hat"],
+        "required": [
+          "defect_key",
+          "file_path",
+          "category",
+          "severity",
+          "reported_by",
+          "support_count",
+          "observed_by",
+          "missed_by",
+          "null_by",
+          "k_eff_defect",
+          "psi_post",
+          "local_risk_score",
+          "severity_weight",
+          "occupancy_uplift",
+          "structural_risk_uplift",
+          "support_uplift",
+          "hazard_contribution",
+          "hazard_flags"
+        ],
         "properties": {
-          "target_id": {"type": "string", "minLength": 1},
-          "lambda_hat": {"type": "number", "minimum": 0},
-          "uncertainty": {"type": ["number", "null"], "minimum": 0}
+          "defect_key": {"type": "string", "pattern": "^dfk_[a-f0-9]{64}$"},
+          "file_path": {"type": "string", "minLength": 1},
+          "category": {
+            "type": "string",
+            "enum": ["correctness", "consistency", "schema", "docs", "policy", "risk", "unknown"]
+          },
+          "severity": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+          "reported_by": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "minLength": 1}
+          },
+          "support_count": {"type": "integer", "minimum": 0},
+          "observed_by": {"type": "integer", "minimum": 0},
+          "missed_by": {"type": "integer", "minimum": 0},
+          "null_by": {"type": "integer", "minimum": 0},
+          "k_eff_defect": {"type": "integer", "minimum": 0},
+          "psi_post": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "local_risk_score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "severity_weight": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "occupancy_uplift": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "structural_risk_uplift": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "support_uplift": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "hazard_contribution": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "hazard_flags": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "mode",
+        "row_policy",
+        "summary_policy",
+        "parameters",
+        "thresholds"
+      ],
+      "properties": {
+        "name": {"type": "string", "const": "hazard_rev1"},
+        "mode": {"type": "string", "const": "deterministic_conservative"},
+        "row_policy": {"type": "string", "const": "severity_plus_uplifts_v1"},
+        "summary_policy": {"type": "string", "const": "bounded_union_hidden_uncertainty_v1"},
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "hazard_round_digits",
+            "hazard_hidden_uplift_strength",
+            "hazard_structural_risk_strength",
+            "hazard_occupancy_strength",
+            "hazard_support_uplift_strength",
+            "hazard_uncertainty_boost",
+            "hazard_blocking_threshold",
+            "severity_weights"
+          ],
+          "properties": {
+            "hazard_round_digits": {"type": "integer", "minimum": 0, "maximum": 12},
+            "hazard_hidden_uplift_strength": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+            "hazard_structural_risk_strength": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+            "hazard_occupancy_strength": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+            "hazard_support_uplift_strength": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+            "hazard_uncertainty_boost": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+            "hazard_blocking_threshold": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+            "severity_weights": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["low", "medium", "high", "critical"],
+              "properties": {
+                "low": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "medium": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "high": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "critical": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+              }
+            }
+          }
+        },
+        "thresholds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tier_floors"],
+          "properties": {
+            "tier_floors": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["low", "guarded", "elevated", "high", "critical"],
+              "properties": {
+                "low": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "guarded": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "elevated": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "high": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "critical": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+              }
+            }
+          }
         }
       }
     },
     "provenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["algorithm"],
+      "required": ["algorithm", "deterministic", "inputs", "model_version"],
       "properties": {
-        "algorithm": {"type": "string", "minLength": 1}
+        "algorithm": {"type": "string", "const": "hazard_map_v1"},
+        "deterministic": {"type": "boolean"},
+        "inputs": {
+          "const": [
+            "risk_heatmap.json",
+            "telemetry_matrix.json",
+            "occupancy_snapshot.json",
+            "capture_estimate.json"
+          ]
+        },
+        "model_version": {"type": "string", "const": "hazard_rev1"}
       }
     }
   }

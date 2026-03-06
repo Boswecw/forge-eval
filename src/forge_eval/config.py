@@ -16,6 +16,7 @@ KNOWN_STAGES = (
     "telemetry_matrix",
     "occupancy_snapshot",
     "capture_estimate",
+    "hazard_map",
 )
 KNOWN_REVIEWER_KINDS = (
     "changed_lines",
@@ -29,6 +30,7 @@ KNOWN_TELEMETRY_KEFF_MODES = ("global_min_per_defect",)
 KNOWN_OCCUPANCY_MODEL_VERSIONS = ("occupancy_rev1",)
 KNOWN_CAPTURE_INCLUSION_POLICIES = ("include_all",)
 KNOWN_CAPTURE_SELECTION_POLICIES = ("max_hidden",)
+KNOWN_HAZARD_MODEL_VERSIONS = ("hazard_rev1",)
 KNOWN_SEVERITIES = ("low", "medium", "high", "critical")
 KNOWN_CATEGORIES = (
     "correctness",
@@ -48,6 +50,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "telemetry_matrix",
         "occupancy_snapshot",
         "capture_estimate",
+        "hazard_map",
     ],
     "risk_weights": {
         "w_churn": 0.45,
@@ -87,6 +90,14 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "capture_selection_policy": "max_hidden",
     "ice_rare_threshold": 10,
     "capture_round_digits": 6,
+    "hazard_model_version": "hazard_rev1",
+    "hazard_round_digits": 6,
+    "hazard_hidden_uplift_strength": 0.20,
+    "hazard_structural_risk_strength": 0.30,
+    "hazard_occupancy_strength": 0.35,
+    "hazard_support_uplift_strength": 0.15,
+    "hazard_uncertainty_boost": 0.12,
+    "hazard_blocking_threshold": 0.80,
     "reviewers": [
         {
             "reviewer_id": "changed_lines.rule.v1",
@@ -525,6 +536,36 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
             raise ConfigError("capture_round_digits must be in [0, 12]", details={"value": value})
         cfg["capture_round_digits"] = value
 
+    if "hazard_model_version" in raw:
+        value = raw["hazard_model_version"]
+        if value not in KNOWN_HAZARD_MODEL_VERSIONS:
+            raise ConfigError("hazard_model_version must be 'hazard_rev1'")
+        cfg["hazard_model_version"] = value
+
+    hazard_float_keys = (
+        "hazard_hidden_uplift_strength",
+        "hazard_structural_risk_strength",
+        "hazard_occupancy_strength",
+        "hazard_support_uplift_strength",
+        "hazard_uncertainty_boost",
+        "hazard_blocking_threshold",
+    )
+    for key in hazard_float_keys:
+        if key not in raw:
+            continue
+        value = _ensure_number(key, raw[key], min_value=0.0)
+        if value > 1.0:
+            raise ConfigError("hazard config value must be <= 1.0", details={"key": key, "value": value})
+        cfg[key] = value
+
+    if "hazard_round_digits" in raw:
+        value = raw["hazard_round_digits"]
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ConfigError("hazard_round_digits must be an integer")
+        if value < 0 or value > 12:
+            raise ConfigError("hazard_round_digits must be in [0, 12]", details={"value": value})
+        cfg["hazard_round_digits"] = value
+
     if "reviewers" in raw:
         cfg["reviewers"] = _normalize_reviewers(raw["reviewers"])
 
@@ -541,6 +582,8 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
         raise ConfigError("occupancy_snapshot stage requires telemetry_matrix stage to be enabled")
     if "capture_estimate" in enabled_stage_set and "occupancy_snapshot" not in enabled_stage_set:
         raise ConfigError("capture_estimate stage requires occupancy_snapshot stage to be enabled")
+    if "hazard_map" in enabled_stage_set and "capture_estimate" not in enabled_stage_set:
+        raise ConfigError("hazard_map stage requires capture_estimate stage to be enabled")
 
     return cfg
 

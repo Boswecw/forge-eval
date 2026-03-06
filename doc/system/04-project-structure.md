@@ -26,6 +26,7 @@ repo/
       telemetry_matrix.py
       occupancy_snapshot.py
       capture_estimate.py
+      hazard_map.py
     services/
       git_diff.py
       risk_analysis.py
@@ -46,6 +47,9 @@ repo/
       ice.py
       capture_selection.py
       capture_summary.py
+      hazard_model.py
+      hazard_rows.py
+      hazard_summary.py
     schemas/
       *.schema.json
     validation/
@@ -63,6 +67,7 @@ repo/
     test_telemetry_matrix_stage.py
     test_occupancy_snapshot_stage.py
     test_capture_estimate_stage.py
+    test_hazard_map_stage.py
     test_finding_normalizer.py
     test_defect_identity.py
     test_schemas.py

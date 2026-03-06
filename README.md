@@ -24,13 +24,14 @@ Current implemented packs:
 * **Pack H**: Telemetry matrix + reviewer health + tri-state outcomes + `k_eff`
 * **Pack I**: Occupancy snapshot + deterministic conservative `psi_post`
 * **Pack J**: Hidden-defect capture estimate + Chao1/ICE + conservative selected hidden burden
+* **Pack K**: Deterministic conservative hazard mapping (`hazard_map`) from structural risk + telemetry + occupancy + hidden-defect pressure
 
 ## Repo role
 
 Forge Eval implements the deterministic eval pipeline foundation:
 
 ```text
-risk -> context slices -> reviewer findings -> telemetry matrix -> occupancy snapshot -> capture estimate
+risk -> context slices -> reviewer findings -> telemetry matrix -> occupancy snapshot -> capture estimate -> hazard map
 ```
 
 Core invariants:
@@ -97,11 +98,12 @@ Depending on enabled stages, Forge Eval currently emits:
 * `telemetry_matrix.json`
 * `occupancy_snapshot.json`
 * `capture_estimate.json`
+* `hazard_map.json`
 
 ## Current fixed stage order
 
 ```text
-risk_heatmap -> context_slices -> review_findings -> telemetry_matrix -> occupancy_snapshot -> capture_estimate
+risk_heatmap -> context_slices -> review_findings -> telemetry_matrix -> occupancy_snapshot -> capture_estimate -> hazard_map
 ```
 
 ## Determinism notes
@@ -120,21 +122,22 @@ risk_heatmap -> context_slices -> review_findings -> telemetry_matrix -> occupan
 
 ## Status
 
-Forge Eval Packs A–J are implemented in the current repo state.
+Forge Eval Packs A–K are implemented in the current repo state.
 
-The current A–J runtime path has been verified on a real local target repo:
+The current A–K runtime path has been verified on a real local target repo:
 
-- emitted artifact set: `config.resolved.json`, `risk_heatmap.json`, `context_slices.json`, `review_findings.json`, `telemetry_matrix.json`, `occupancy_snapshot.json`, `capture_estimate.json`
+- emitted artifact set: `config.resolved.json`, `risk_heatmap.json`, `context_slices.json`, `review_findings.json`, `telemetry_matrix.json`, `occupancy_snapshot.json`, `capture_estimate.json`, `hazard_map.json`
 - `forge-eval validate` passed on the emitted artifacts
-- repeated identical runs were byte-identical across all primary artifacts
+- repeated identical runs were byte-identical across all primary artifacts, including `hazard_map.json`
 - fail-closed probes were confirmed for config, validation, reviewer-failure, and cross-artifact mismatch cases
 
 Verification report:
 
 - `reports/forge_eval_a_to_j_verification_report_rev1.md`
+- `reports/forge_eval_pack_k_hazard_implementation_report_rev1.md`
 
-Downstream packs such as hazard, merge decision, and evidence bundle assembly are still not implemented.
+Downstream packs such as merge decision and evidence bundle assembly are still not implemented.
 
 ## Important note on Rust evidence
 
-The Rust evidence subsystem is implemented, callable, and tested, but it is not part of the main A–J stage pipeline in the current runtime. It remains a verified helper boundary until a later slice explicitly wires evidence primitives into emitted artifact handling or downstream bundle assembly.
+The Rust evidence subsystem is implemented, callable, and tested, but it is not part of the main A–K stage pipeline in the current runtime. It remains a verified helper boundary until a later slice explicitly wires evidence primitives into emitted artifact handling or downstream bundle assembly.

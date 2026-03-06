@@ -40,7 +40,7 @@ export FORGE_EVIDENCE_BIN=/abs/path/to/rust/forge-evidence/target/debug/forge-ev
 Current evidence boundary:
 
 - the Rust evidence binary is verified and callable
-- `forge-eval run` / `forge-eval validate` do not currently invoke it in the main A-J stage path
+- `forge-eval run` / `forge-eval validate` do not currently invoke it in the main A-K stage path
 
 ## Execute Pipeline
 
@@ -69,7 +69,8 @@ forge-eval validate --artifacts /abs/path/to/artifacts
 6. Confirm same-reviewer duplicates and metadata collisions fail closed in tests.
 7. Confirm occupancy rows are bounded (`psi_post` in `[0,1]`) in `occupancy_snapshot.json`.
 8. Confirm capture outputs include Chao1, ICE, and selected hidden estimate in `capture_estimate.json`.
-9. Run Python and Rust tests before merge.
+9. Confirm hazard output includes bounded `hazard_score`, deterministic `hazard_tier`, and explicit uncertainty flags in `hazard_map.json`.
+10. Run Python and Rust tests before merge.
 
 ## Guardrails for Next Packs
 
@@ -80,3 +81,4 @@ forge-eval validate --artifacts /abs/path/to/artifacts
 5. Preserve ghost-coverage guard: failed/skipped/inapplicable reviewer states must never be coerced to clean misses.
 6. Preserve occupancy conservatism: weak/null-heavy coverage must not be treated as strong suppression.
 7. Preserve capture conservatism: singleton-heavy sparse evidence must not collapse to low hidden-defect estimates.
+8. Preserve hazard conservatism: hidden-defect pressure and uncertainty must not be converted into a clean-looking change set.

@@ -1,6 +1,6 @@
 # §10 - Testing and Determinism
 
-## Python Test Coverage (Packs A-J)
+## Python Test Coverage (Packs A-K)
 
 - CLI smoke + failure behavior
 - config normalization and rejection cases
@@ -18,9 +18,11 @@
 - occupancy fail-closed behavior for illegal telemetry cells, count mismatches, and invalid model config
 - capture estimate stage behavior (`f1`/`f2`, Chao1, ICE, conservative selection)
 - capture fail-closed behavior for inconsistent defect sets, invalid selection policy, and mismatched cross-artifact counts
+- hazard map stage behavior (row hazard calculation, tier mapping, conservative summary aggregation)
+- hazard fail-closed behavior for missing risk mapping, run/commit mismatch, inconsistent defect sets, and invalid model version
 - golden-file checks for context slices
 - repeatability checks using byte-equality of serialized artifacts
-- integration proof that pipeline emits deterministic `review_findings.json`, `telemetry_matrix.json`, `occupancy_snapshot.json`, and `capture_estimate.json`
+- integration proof that pipeline emits deterministic `review_findings.json`, `telemetry_matrix.json`, `occupancy_snapshot.json`, `capture_estimate.json`, and `hazard_map.json`
 
 ## Rust Test Coverage (Pack B)
 

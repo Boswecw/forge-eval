@@ -11,6 +11,7 @@ Input:
 Output:
 
 - `capture_estimate.json` (schema kind: `capture_estimate`)
+- Downstream consumer: Pack K `hazard_map` stage
 
 ## Execution Model
 

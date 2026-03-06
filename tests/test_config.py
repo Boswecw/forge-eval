@@ -18,6 +18,7 @@ def test_config_normalization_defaults() -> None:
         "telemetry_matrix",
         "occupancy_snapshot",
         "capture_estimate",
+        "hazard_map",
     ]
     assert cfg["include_file_extensions"] == sorted(DEFAULT_CONFIG["include_file_extensions"])
     assert cfg["exclude_paths"] == sorted(DEFAULT_CONFIG["exclude_paths"])
@@ -29,6 +30,7 @@ def test_config_normalization_defaults() -> None:
     assert cfg["occupancy_detection_assumption"] == 0.70
     assert cfg["capture_inclusion_policy"] == "include_all"
     assert cfg["capture_selection_policy"] == "max_hidden"
+    assert cfg["hazard_model_version"] == "hazard_rev1"
     assert [reviewer["reviewer_id"] for reviewer in cfg["reviewers"]] == sorted(
         reviewer["reviewer_id"] for reviewer in cfg["reviewers"]
     )
@@ -157,3 +159,24 @@ def test_capture_estimate_requires_occupancy_snapshot() -> None:
 def test_capture_selection_policy_must_be_supported() -> None:
     with pytest.raises(ConfigError):
         normalize_config({"capture_selection_policy": "smallest_hidden"})
+
+
+def test_hazard_map_requires_capture_estimate() -> None:
+    with pytest.raises(ConfigError):
+        normalize_config(
+            {
+                "enabled_stages": [
+                    "risk_heatmap",
+                    "context_slices",
+                    "review_findings",
+                    "telemetry_matrix",
+                    "occupancy_snapshot",
+                    "hazard_map",
+                ]
+            }
+        )
+
+
+def test_hazard_model_version_must_be_supported() -> None:
+    with pytest.raises(ConfigError):
+        normalize_config({"hazard_model_version": "hazard_revX"})

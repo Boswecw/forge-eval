@@ -23,6 +23,7 @@ Default stage order and enabled set:
 4. `telemetry_matrix`
 5. `occupancy_snapshot`
 6. `capture_estimate`
+7. `hazard_map`
 
 Stage dependency constraints:
 
@@ -31,8 +32,9 @@ Stage dependency constraints:
 - `telemetry_matrix` requires `review_findings`
 - `occupancy_snapshot` requires `telemetry_matrix`
 - `capture_estimate` requires `occupancy_snapshot`
+- `hazard_map` requires `capture_estimate`
 
-## Pack F/G/H/I/J Config Keys (Current)
+## Pack F/G/H/I/J/K Config Keys (Current)
 
 - `context_radius_lines` (int, >=0)
 - `merge_gap_lines` (int, >=0)
@@ -58,6 +60,14 @@ Stage dependency constraints:
 - `capture_selection_policy` (`max_hidden`)
 - `ice_rare_threshold` (int, >=1)
 - `capture_round_digits` (int in `[0,12]`)
+- `hazard_model_version` (`hazard_rev1`)
+- `hazard_round_digits` (int in `[0,12]`)
+- `hazard_hidden_uplift_strength` (float in `[0,1]`)
+- `hazard_structural_risk_strength` (float in `[0,1]`)
+- `hazard_occupancy_strength` (float in `[0,1]`)
+- `hazard_support_uplift_strength` (float in `[0,1]`)
+- `hazard_uncertainty_boost` (float in `[0,1]`)
+- `hazard_blocking_threshold` (float in `[0,1]`)
 
 ## Artifacts Written by `run`
 
@@ -68,6 +78,7 @@ Stage dependency constraints:
 - `telemetry_matrix.json` (if enabled)
 - `occupancy_snapshot.json` (if enabled)
 - `capture_estimate.json` (if enabled)
+- `hazard_map.json` (if enabled)
 
 All Python-written artifacts use deterministic JSON encoding:
 

@@ -7,6 +7,7 @@ from typing import Any
 
 from forge_eval.errors import StageError, ValidationError
 from forge_eval.stages.capture_estimate import run_stage as run_capture_estimate_stage
+from forge_eval.stages.hazard_map import run_stage as run_hazard_map_stage
 from forge_eval.services.git_diff import resolve_commit
 from forge_eval.stages.occupancy_snapshot import run_stage as run_occupancy_snapshot_stage
 from forge_eval.stages.context_slices import run_stage as run_context_slices_stage
@@ -23,6 +24,7 @@ STAGE_ORDER = (
     "telemetry_matrix",
     "occupancy_snapshot",
     "capture_estimate",
+    "hazard_map",
 )
 STAGE_TO_ARTIFACT_KIND = {
     "risk_heatmap": "risk_heatmap",
@@ -31,6 +33,7 @@ STAGE_TO_ARTIFACT_KIND = {
     "telemetry_matrix": "telemetry_matrix",
     "occupancy_snapshot": "occupancy_snapshot",
     "capture_estimate": "capture_estimate",
+    "hazard_map": "hazard_map",
 }
 
 
@@ -155,6 +158,43 @@ def _run_stage(
             config=config,
             telemetry_matrix_artifact=telemetry_artifact,
             occupancy_snapshot_artifact=occupancy_artifact,
+        )
+
+    if stage == "hazard_map":
+        risk_artifact = prior_artifacts.get("risk_heatmap")
+        telemetry_artifact = prior_artifacts.get("telemetry_matrix")
+        occupancy_artifact = prior_artifacts.get("occupancy_snapshot")
+        capture_artifact = prior_artifacts.get("capture_estimate")
+        if risk_artifact is None:
+            raise StageError(
+                "hazard_map stage requires risk_heatmap artifact",
+                stage=stage,
+            )
+        if telemetry_artifact is None:
+            raise StageError(
+                "hazard_map stage requires telemetry_matrix artifact",
+                stage=stage,
+            )
+        if occupancy_artifact is None:
+            raise StageError(
+                "hazard_map stage requires occupancy_snapshot artifact",
+                stage=stage,
+            )
+        if capture_artifact is None:
+            raise StageError(
+                "hazard_map stage requires capture_estimate artifact",
+                stage=stage,
+            )
+        return run_hazard_map_stage(
+            repo_path=repo_path,
+            base_ref=base_ref,
+            head_ref=head_ref,
+            run_id=run_id,
+            config=config,
+            risk_heatmap_artifact=risk_artifact,
+            telemetry_matrix_artifact=telemetry_artifact,
+            occupancy_snapshot_artifact=occupancy_artifact,
+            capture_estimate_artifact=capture_artifact,
         )
 
     raise StageError("unknown stage requested", stage=stage, details={"stage": stage})

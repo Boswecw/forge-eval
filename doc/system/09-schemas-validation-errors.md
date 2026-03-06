@@ -1,6 +1,6 @@
 # §9 - Schemas, Validation, and Error Model
 
-## Schema Set (Pack D + Pack G/H/I/J Extensions)
+## Schema Set (Pack D + Pack G/H/I/J/K Extensions)
 
 Implemented schema files:
 
@@ -48,6 +48,15 @@ All schemas are Draft 2020-12 and strict at root (`additionalProperties: false`)
 - structured Chao1 and ICE outputs with explicit guard flags
 - conservative selected hidden estimate (`max_hidden`)
 - provenance locked to telemetry + occupancy inputs
+
+`hazard_map.schema.json` enforces Pack K layout:
+
+- `artifact_version`, `kind`, `run`, `inputs`, `summary`, `rows`, `model`, `provenance`
+- deterministic per-defect hazard rows joined to structural `risk_score`
+- bounded row and summary outputs (`hazard_contribution`, `hazard_score` in `[0,1]`)
+- locked hazard tiers (`low`, `guarded`, `elevated`, `high`, `critical`)
+- explicit uncertainty and blocking reason flags
+- provenance locked to risk + telemetry + occupancy + capture inputs and `hazard_rev1`
 
 ## Validation Behavior
 

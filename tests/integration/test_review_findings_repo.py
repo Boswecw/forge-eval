@@ -40,7 +40,7 @@ def _commit_all(repo: Path, message: str) -> None:
     _run(["git", "commit", "-m", message], repo)
 
 
-def test_pipeline_emits_review_telemetry_occupancy_and_capture_artifacts_and_is_deterministic(tmp_path: Path) -> None:
+def test_pipeline_emits_review_telemetry_occupancy_capture_and_hazard_artifacts_and_is_deterministic(tmp_path: Path) -> None:
     repo = _init_repo(tmp_path)
     (repo / "a.py").write_text("def add(a, b):\n    return a + b\n", encoding="utf-8")
     (repo / "README.md").write_text("# Example\n", encoding="utf-8")
@@ -79,6 +79,8 @@ def test_pipeline_emits_review_telemetry_occupancy_and_capture_artifacts_and_is_
     assert "occupancy_snapshot.json" in result2["artifacts_written"]
     assert "capture_estimate.json" in result1["artifacts_written"]
     assert "capture_estimate.json" in result2["artifacts_written"]
+    assert "hazard_map.json" in result1["artifacts_written"]
+    assert "hazard_map.json" in result2["artifacts_written"]
 
     artifact1 = out1 / "review_findings.json"
     artifact2 = out2 / "review_findings.json"
@@ -95,6 +97,10 @@ def test_pipeline_emits_review_telemetry_occupancy_and_capture_artifacts_and_is_
     capture1 = out1 / "capture_estimate.json"
     capture2 = out2 / "capture_estimate.json"
     assert capture1.read_bytes() == capture2.read_bytes()
+
+    hazard1 = out1 / "hazard_map.json"
+    hazard2 = out2 / "hazard_map.json"
+    assert hazard1.read_bytes() == hazard2.read_bytes()
 
     schema = load_schema("review_findings")
     parsed = load_json_file(artifact1)
@@ -115,6 +121,11 @@ def test_pipeline_emits_review_telemetry_occupancy_and_capture_artifacts_and_is_
     capture = load_json_file(capture1)
     validate_instance(capture, capture_schema, artifact_kind="capture_estimate")
     assert capture["estimators"]["selected_hidden"] >= 0.0
+
+    hazard_schema = load_schema("hazard_map")
+    hazard = load_json_file(hazard1)
+    validate_instance(hazard, hazard_schema, artifact_kind="hazard_map")
+    assert 0.0 <= hazard["summary"]["hazard_score"] <= 1.0
 
 
 def test_pipeline_coalesces_cross_reviewer_defects_when_reviewers_share_identity(tmp_path: Path) -> None:

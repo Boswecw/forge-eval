@@ -11,7 +11,8 @@
 7. Telemetry subsystem (`services/reviewer_health.py`, `services/applicability.py`, `services/telemetry_builder.py`, `services/k_eff.py`)
 8. Occupancy subsystem (`services/occupancy_priors.py`, `services/occupancy_model.py`, `services/occupancy_rows.py`, `services/occupancy_summary.py`)
 9. Hidden-defect subsystem (`services/capture_counts.py`, `services/chao1.py`, `services/ice.py`, `services/capture_selection.py`, `services/capture_summary.py`)
-10. Evidence subsystem (Rust binary under `rust/forge-evidence`, Python wrapper in `evidence_cli.py`)
+10. Hazard subsystem (`services/hazard_model.py`, `services/hazard_rows.py`, `services/hazard_summary.py`)
+11. Evidence subsystem (Rust binary under `rust/forge-evidence`, Python wrapper in `evidence_cli.py`)
 
 ## Runtime Flow (`forge-eval run`)
 
@@ -27,6 +28,7 @@
    - `telemetry_matrix`
    - `occupancy_snapshot`
    - `capture_estimate`
+   - `hazard_map`
 7. Validate each stage artifact against strict schema.
 8. Write schema-valid artifacts to output directory.
 
@@ -44,4 +46,4 @@
 - Rust owns deterministic evidence primitives.
 - Cross-language integration is subprocess-based only.
 - No Python fallback implementation for evidence primitives.
-- Current A-J runtime boundary: the stage pipeline does not invoke `evidence_cli.py`; Rust evidence remains a verified helper subsystem until a later slice wires it into emitted artifact handling.
+- Current A-K runtime boundary: the stage pipeline does not invoke `evidence_cli.py`; Rust evidence remains a verified helper subsystem until a later slice wires it into emitted artifact handling.

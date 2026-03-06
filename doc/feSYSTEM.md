@@ -1,6 +1,6 @@
 # Forge Eval System Documentation
 
-**Document version:** 1.0 (2026-03-06) — Normalized to Forge Documentation Protocol v1
+**Document version:** 1.1 (2026-03-06) — Implemented Pack K hazard stage and normalized to Forge Documentation Protocol v1
 **Protocol:** Forge Documentation Protocol v1
 
 This `doc/system/` tree uses explicit truth classes:
@@ -31,6 +31,7 @@ Assembly contract:
 | §13 | [13-telemetry-matrix-stage.md](13-telemetry-matrix-stage.md) | Pack H deterministic telemetry matrix and conservative `k_eff` |
 | §14 | [14-occupancy-snapshot-stage.md](14-occupancy-snapshot-stage.md) | Pack I deterministic occupancy posterior (`psi_post`) |
 | §15 | [15-capture-estimate-stage.md](15-capture-estimate-stage.md) | Pack J deterministic hidden-defect estimation via Chao1 and ICE |
+| §16 | [16-hazard-map-stage.md](16-hazard-map-stage.md) | Pack K deterministic hazard mapping from risk, telemetry, occupancy, and capture pressure |
 
 ## Quick Assembly
 
@@ -46,7 +47,7 @@ bash doc/system/BUILD.sh   # Assembles all parts into doc/feSYSTEM.md
 
 ## Purpose
 
-`forge-eval` is a deterministic, fail-closed evaluation foundation implementing Packs A-J:
+`forge-eval` is a deterministic, fail-closed evaluation foundation implementing Packs A-K:
 
 - Pack A: Python scaffold, CLI, orchestration, error model.
 - Pack B: Rust evidence binary (`forge-evidence`) for canonical JSON/hash/hashchain primitives.
@@ -58,14 +59,15 @@ bash doc/system/BUILD.sh   # Assembles all parts into doc/feSYSTEM.md
 - Pack H: Deterministic telemetry matrix with reviewer-truth preservation and conservative `k_eff`.
 - Pack I: Deterministic occupancy posterior estimation (`psi_post`) with conservative null handling.
 - Pack J: Deterministic hidden-defect estimation (`capture_estimate`) with Chao1/ICE and conservative selection.
+- Pack K: Deterministic hazard assessment (`hazard_map`) combining structural risk, observed burden, residual occupancy concern, and hidden-defect pressure.
 
 ## Current Pipeline Boundary
 
 Implemented path:
 
-`config -> risk_heatmap -> context_slices -> review_findings -> telemetry_matrix -> occupancy_snapshot -> capture_estimate`
+`config -> risk_heatmap -> context_slices -> review_findings -> telemetry_matrix -> occupancy_snapshot -> capture_estimate -> hazard_map`
 
-Planned downstream (not implemented here): hazard, merge decision, bundle assembly.
+Planned downstream (not implemented here): merge decision, bundle assembly.
 
 ## Governing Principles
 
@@ -91,7 +93,8 @@ Planned downstream (not implemented here): hazard, merge decision, bundle assemb
 7. Telemetry subsystem (`services/reviewer_health.py`, `services/applicability.py`, `services/telemetry_builder.py`, `services/k_eff.py`)
 8. Occupancy subsystem (`services/occupancy_priors.py`, `services/occupancy_model.py`, `services/occupancy_rows.py`, `services/occupancy_summary.py`)
 9. Hidden-defect subsystem (`services/capture_counts.py`, `services/chao1.py`, `services/ice.py`, `services/capture_selection.py`, `services/capture_summary.py`)
-10. Evidence subsystem (Rust binary under `rust/forge-evidence`, Python wrapper in `evidence_cli.py`)
+10. Hazard subsystem (`services/hazard_model.py`, `services/hazard_rows.py`, `services/hazard_summary.py`)
+11. Evidence subsystem (Rust binary under `rust/forge-evidence`, Python wrapper in `evidence_cli.py`)
 
 ## Runtime Flow (`forge-eval run`)
 
@@ -107,6 +110,7 @@ Planned downstream (not implemented here): hazard, merge decision, bundle assemb
    - `telemetry_matrix`
    - `occupancy_snapshot`
    - `capture_estimate`
+   - `hazard_map`
 7. Validate each stage artifact against strict schema.
 8. Write schema-valid artifacts to output directory.
 
@@ -124,7 +128,7 @@ Planned downstream (not implemented here): hazard, merge decision, bundle assemb
 - Rust owns deterministic evidence primitives.
 - Cross-language integration is subprocess-based only.
 - No Python fallback implementation for evidence primitives.
-- Current A-J runtime boundary: the stage pipeline does not invoke `evidence_cli.py`; Rust evidence remains a verified helper subsystem until a later slice wires it into emitted artifact handling.
+- Current A-K runtime boundary: the stage pipeline does not invoke `evidence_cli.py`; Rust evidence remains a verified helper subsystem until a later slice wires it into emitted artifact handling.
 
 ---
 
@@ -191,6 +195,7 @@ repo/
       telemetry_matrix.py
       occupancy_snapshot.py
       capture_estimate.py
+      hazard_map.py
     services/
       git_diff.py
       risk_analysis.py
@@ -211,6 +216,9 @@ repo/
       ice.py
       capture_selection.py
       capture_summary.py
+      hazard_model.py
+      hazard_rows.py
+      hazard_summary.py
     schemas/
       *.schema.json
     validation/
@@ -228,6 +236,7 @@ repo/
     test_telemetry_matrix_stage.py
     test_occupancy_snapshot_stage.py
     test_capture_estimate_stage.py
+    test_hazard_map_stage.py
     test_finding_normalizer.py
     test_defect_identity.py
     test_schemas.py
@@ -285,6 +294,7 @@ Default stage order and enabled set:
 4. `telemetry_matrix`
 5. `occupancy_snapshot`
 6. `capture_estimate`
+7. `hazard_map`
 
 Stage dependency constraints:
 
@@ -293,8 +303,9 @@ Stage dependency constraints:
 - `telemetry_matrix` requires `review_findings`
 - `occupancy_snapshot` requires `telemetry_matrix`
 - `capture_estimate` requires `occupancy_snapshot`
+- `hazard_map` requires `capture_estimate`
 
-## Pack F/G/H/I/J Config Keys (Current)
+## Pack F/G/H/I/J/K Config Keys (Current)
 
 - `context_radius_lines` (int, >=0)
 - `merge_gap_lines` (int, >=0)
@@ -320,6 +331,14 @@ Stage dependency constraints:
 - `capture_selection_policy` (`max_hidden`)
 - `ice_rare_threshold` (int, >=1)
 - `capture_round_digits` (int in `[0,12]`)
+- `hazard_model_version` (`hazard_rev1`)
+- `hazard_round_digits` (int in `[0,12]`)
+- `hazard_hidden_uplift_strength` (float in `[0,1]`)
+- `hazard_structural_risk_strength` (float in `[0,1]`)
+- `hazard_occupancy_strength` (float in `[0,1]`)
+- `hazard_support_uplift_strength` (float in `[0,1]`)
+- `hazard_uncertainty_boost` (float in `[0,1]`)
+- `hazard_blocking_threshold` (float in `[0,1]`)
 
 ## Artifacts Written by `run`
 
@@ -330,6 +349,7 @@ Stage dependency constraints:
 - `telemetry_matrix.json` (if enabled)
 - `occupancy_snapshot.json` (if enabled)
 - `capture_estimate.json` (if enabled)
+- `hazard_map.json` (if enabled)
 
 All Python-written artifacts use deterministic JSON encoding:
 
@@ -380,7 +400,7 @@ Environment override:
 ## Current Runtime Posture
 
 - `forge-evidence` and `evidence_cli.py` are implemented, directly callable, and covered by Rust/Python tests.
-- Current A-J pipeline stages do not invoke the evidence wrapper during `forge-eval run` or `forge-eval validate`.
+- Current A-K pipeline stages do not invoke the evidence wrapper during `forge-eval run` or `forge-eval validate`.
 - This is the active boundary by design in the current repo state:
   - evidence primitives are available
   - mainline artifact emission remains Python-owned
@@ -477,7 +497,7 @@ For each changed target file (non-deleted, extension-allowed, non-excluded):
 
 # §9 - Schemas, Validation, and Error Model
 
-## Schema Set (Pack D + Pack G/H/I/J Extensions)
+## Schema Set (Pack D + Pack G/H/I/J/K Extensions)
 
 Implemented schema files:
 
@@ -526,6 +546,15 @@ All schemas are Draft 2020-12 and strict at root (`additionalProperties: false`)
 - conservative selected hidden estimate (`max_hidden`)
 - provenance locked to telemetry + occupancy inputs
 
+`hazard_map.schema.json` enforces Pack K layout:
+
+- `artifact_version`, `kind`, `run`, `inputs`, `summary`, `rows`, `model`, `provenance`
+- deterministic per-defect hazard rows joined to structural `risk_score`
+- bounded row and summary outputs (`hazard_contribution`, `hazard_score` in `[0,1]`)
+- locked hazard tiers (`low`, `guarded`, `elevated`, `high`, `critical`)
+- explicit uncertainty and blocking reason flags
+- provenance locked to risk + telemetry + occupancy + capture inputs and `hazard_rev1`
+
 ## Validation Behavior
 
 - Schema loader fails on unknown artifact kind or missing schema files.
@@ -554,7 +583,7 @@ CLI exits non-zero on any structured error.
 
 # §10 - Testing and Determinism
 
-## Python Test Coverage (Packs A-J)
+## Python Test Coverage (Packs A-K)
 
 - CLI smoke + failure behavior
 - config normalization and rejection cases
@@ -572,9 +601,11 @@ CLI exits non-zero on any structured error.
 - occupancy fail-closed behavior for illegal telemetry cells, count mismatches, and invalid model config
 - capture estimate stage behavior (`f1`/`f2`, Chao1, ICE, conservative selection)
 - capture fail-closed behavior for inconsistent defect sets, invalid selection policy, and mismatched cross-artifact counts
+- hazard map stage behavior (row hazard calculation, tier mapping, conservative summary aggregation)
+- hazard fail-closed behavior for missing risk mapping, run/commit mismatch, inconsistent defect sets, and invalid model version
 - golden-file checks for context slices
 - repeatability checks using byte-equality of serialized artifacts
-- integration proof that pipeline emits deterministic `review_findings.json`, `telemetry_matrix.json`, `occupancy_snapshot.json`, and `capture_estimate.json`
+- integration proof that pipeline emits deterministic `review_findings.json`, `telemetry_matrix.json`, `occupancy_snapshot.json`, `capture_estimate.json`, and `hazard_map.json`
 
 ## Rust Test Coverage (Pack B)
 
@@ -640,7 +671,7 @@ export FORGE_EVIDENCE_BIN=/abs/path/to/rust/forge-evidence/target/debug/forge-ev
 Current evidence boundary:
 
 - the Rust evidence binary is verified and callable
-- `forge-eval run` / `forge-eval validate` do not currently invoke it in the main A-J stage path
+- `forge-eval run` / `forge-eval validate` do not currently invoke it in the main A-K stage path
 
 ## Execute Pipeline
 
@@ -669,7 +700,8 @@ forge-eval validate --artifacts /abs/path/to/artifacts
 6. Confirm same-reviewer duplicates and metadata collisions fail closed in tests.
 7. Confirm occupancy rows are bounded (`psi_post` in `[0,1]`) in `occupancy_snapshot.json`.
 8. Confirm capture outputs include Chao1, ICE, and selected hidden estimate in `capture_estimate.json`.
-9. Run Python and Rust tests before merge.
+9. Confirm hazard output includes bounded `hazard_score`, deterministic `hazard_tier`, and explicit uncertainty flags in `hazard_map.json`.
+10. Run Python and Rust tests before merge.
 
 ## Guardrails for Next Packs
 
@@ -680,6 +712,7 @@ forge-eval validate --artifacts /abs/path/to/artifacts
 5. Preserve ghost-coverage guard: failed/skipped/inapplicable reviewer states must never be coerced to clean misses.
 6. Preserve occupancy conservatism: weak/null-heavy coverage must not be treated as strong suppression.
 7. Preserve capture conservatism: singleton-heavy sparse evidence must not collapse to low hidden-defect estimates.
+8. Preserve hazard conservatism: hidden-defect pressure and uncertainty must not be converted into a clean-looking change set.
 
 ---
 
@@ -897,6 +930,7 @@ Input:
 Output:
 
 - `capture_estimate.json` (schema kind: `capture_estimate`)
+- Downstream consumer: Pack K `hazard_map` stage
 
 ## Execution Model
 
@@ -939,3 +973,81 @@ When ICE coverage collapses or rare-incidence support is too weak, Pack J uses a
 - histogram keys are emitted as sorted decimal strings.
 - estimator rounding is fixed by `capture_round_digits`.
 - selected hidden estimate is explicit and conservative.
+
+---
+
+# §16 - Pack K: Hazard Map Stage
+
+## Stage Contract
+
+Input:
+
+- `risk_heatmap` artifact (required)
+- `telemetry_matrix` artifact (required)
+- `occupancy_snapshot` artifact (required)
+- `capture_estimate` artifact (required)
+- normalized hazard config block (required)
+
+Output:
+
+- `hazard_map.json` (schema kind: `hazard_map`)
+
+## Execution Model
+
+1. Validate all upstream artifacts and enforce deterministic run alignment.
+2. Join telemetry defects to occupancy rows by canonical `defect_key`.
+3. Join each defect row to structural `risk_score` by `file_path`.
+4. Compute deterministic per-defect hazard contribution from severity, residual occupancy, structural risk, and reviewer support.
+5. Aggregate row contributions with a bounded union score.
+6. Apply conservative hidden-defect uplift from Pack J and uncertainty uplift from sparse/null-heavy evidence.
+7. Clamp final `hazard_score` to `[0,1]` and map to a deterministic tier.
+8. Emit schema-valid summary, rows, model metadata, and provenance.
+
+## Core Signals
+
+Pack K combines four conservative signals:
+
+- structural risk pressure from `risk_heatmap`
+- observed defect burden from `telemetry_matrix`
+- residual occupancy concern from `occupancy_snapshot`
+- hidden-defect pressure from `capture_estimate`
+
+## Model Rules (Rev 1)
+
+- model version: `hazard_rev1`
+- row policy: `severity_plus_uplifts_v1`
+- summary policy: `bounded_union_hidden_uncertainty_v1`
+- tier set: `low`, `guarded`, `elevated`, `high`, `critical`
+
+Row contributions are deterministic and conservative:
+
+- severity sets the base weight
+- higher `psi_post` increases concern
+- higher structural `risk_score` amplifies the same defect evidence
+- cross-reviewer support can only increase concern; it never reduces it
+
+Summary hazard remains bounded and interpretable:
+
+- row contributions are merged with a bounded union score
+- `selected_hidden` from Pack J applies hidden-defect uplift
+- sparse/null-heavy evidence applies uncertainty uplift
+- final `hazard_score` is clamped to `[0,1]`
+
+## Fail-Closed Behavior
+
+- missing upstream artifact -> stage failure
+- run or commit mismatch across Pack H/I/J/K inputs -> stage failure
+- defect-set mismatch between telemetry and occupancy -> stage failure
+- missing structural risk mapping for a defect file -> stage failure
+- unsupported `hazard_model_version` -> stage failure
+- out-of-range hazard config params -> stage failure
+- duplicate risk target or duplicate defect rows -> stage failure
+- schema validation failure -> run failure
+
+## Determinism Notes
+
+- defect rows iterate in canonical `defect_key` order
+- file-risk joins are exact on normalized `file_path`
+- row flags and summary flags are emitted in deterministic order
+- rounding is fixed by `hazard_round_digits`
+- repeated identical inputs must produce byte-identical `hazard_map.json`

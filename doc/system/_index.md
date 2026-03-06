@@ -1,6 +1,6 @@
 # Forge Eval System Documentation
 
-**Document version:** 1.0 (2026-03-06) — Normalized to Forge Documentation Protocol v1
+**Document version:** 1.1 (2026-03-06) — Implemented Pack K hazard stage and normalized to Forge Documentation Protocol v1
 **Protocol:** Forge Documentation Protocol v1
 
 This `doc/system/` tree uses explicit truth classes:
@@ -31,6 +31,7 @@ Assembly contract:
 | §13 | [13-telemetry-matrix-stage.md](13-telemetry-matrix-stage.md) | Pack H deterministic telemetry matrix and conservative `k_eff` |
 | §14 | [14-occupancy-snapshot-stage.md](14-occupancy-snapshot-stage.md) | Pack I deterministic occupancy posterior (`psi_post`) |
 | §15 | [15-capture-estimate-stage.md](15-capture-estimate-stage.md) | Pack J deterministic hidden-defect estimation via Chao1 and ICE |
+| §16 | [16-hazard-map-stage.md](16-hazard-map-stage.md) | Pack K deterministic hazard mapping from risk, telemetry, occupancy, and capture pressure |
 
 ## Quick Assembly
 

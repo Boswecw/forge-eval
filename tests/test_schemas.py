@@ -334,11 +334,110 @@ VALID_EXAMPLES = {
         "provenance": {"algorithm": "calibration"},
     },
     "hazard_map": {
-        "schema_version": "v1",
+        "artifact_version": 1,
         "kind": "hazard_map",
-        "run_id": "run",
-        "hazards": [{"target_id": "t1", "lambda_hat": 0.3, "uncertainty": 0.1}],
-        "provenance": {"algorithm": "hazard"},
+        "run": {
+            "run_id": "run",
+            "repo_path": "/tmp/repo",
+            "base_ref": "base",
+            "head_ref": "head",
+            "base_commit": "aaa",
+            "head_commit": "bbb",
+            "risk_artifact": "risk_heatmap.json",
+            "telemetry_artifact": "telemetry_matrix.json",
+            "occupancy_artifact": "occupancy_snapshot.json",
+            "capture_artifact": "capture_estimate.json",
+        },
+        "inputs": {
+            "mode": "deterministic_conservative",
+            "risk_artifact": "risk_heatmap.json",
+            "telemetry_artifact": "telemetry_matrix.json",
+            "occupancy_artifact": "occupancy_snapshot.json",
+            "capture_artifact": "capture_estimate.json",
+            "hidden_selection_policy": "max_hidden",
+            "round_digits": 6,
+        },
+        "summary": {
+            "hazard_score": 0.72,
+            "hazard_tier": "high",
+            "defect_count": 2,
+            "observed_defects": 2,
+            "selected_hidden": 0.5,
+            "selected_total": 2.5,
+            "mean_psi_post": 0.7,
+            "max_risk_score": 0.9,
+            "max_hazard_contribution": 0.61,
+            "hidden_pressure": 0.2,
+            "base_hazard_score": 0.64,
+            "hidden_uplift": 0.04,
+            "uncertainty_uplift": 0.08,
+            "blocking_signals_present": True,
+            "blocking_reason_flags": ["hazard_score_threshold"],
+            "uncertainty_flags": ["low_global_k_eff"],
+        },
+        "rows": [
+            {
+                "defect_key": "dfk_" + ("d" * 64),
+                "file_path": "a.py",
+                "category": "correctness",
+                "severity": "high",
+                "reported_by": ["r1", "r2"],
+                "support_count": 2,
+                "observed_by": 2,
+                "missed_by": 0,
+                "null_by": 1,
+                "k_eff_defect": 2,
+                "psi_post": 0.81,
+                "local_risk_score": 0.9,
+                "severity_weight": 0.35,
+                "occupancy_uplift": 0.099225,
+                "structural_risk_uplift": 0.0945,
+                "support_uplift": 0.0525,
+                "hazard_contribution": 0.596225,
+                "hazard_flags": ["high_severity", "high_structural_risk", "high_residual_occupancy", "null_uncertainty", "cross_reviewer_support"],
+            }
+        ],
+        "model": {
+            "name": "hazard_rev1",
+            "mode": "deterministic_conservative",
+            "row_policy": "severity_plus_uplifts_v1",
+            "summary_policy": "bounded_union_hidden_uncertainty_v1",
+            "parameters": {
+                "hazard_round_digits": 6,
+                "hazard_hidden_uplift_strength": 0.2,
+                "hazard_structural_risk_strength": 0.3,
+                "hazard_occupancy_strength": 0.35,
+                "hazard_support_uplift_strength": 0.15,
+                "hazard_uncertainty_boost": 0.12,
+                "hazard_blocking_threshold": 0.8,
+                "severity_weights": {
+                    "low": 0.08,
+                    "medium": 0.18,
+                    "high": 0.35,
+                    "critical": 0.55,
+                },
+            },
+            "thresholds": {
+                "tier_floors": {
+                    "low": 0.0,
+                    "guarded": 0.2,
+                    "elevated": 0.4,
+                    "high": 0.6,
+                    "critical": 0.8,
+                }
+            },
+        },
+        "provenance": {
+            "algorithm": "hazard_map_v1",
+            "deterministic": True,
+            "inputs": [
+                "risk_heatmap.json",
+                "telemetry_matrix.json",
+                "occupancy_snapshot.json",
+                "capture_estimate.json",
+            ],
+            "model_version": "hazard_rev1",
+        },
     },
     "merge_decision": {
         "schema_version": "v1",
@@ -386,7 +485,7 @@ def test_schema_accepts_valid_examples(kind: str) -> None:
 def test_schema_rejects_invalid_examples(kind: str) -> None:
     schemas = load_all_schemas()
     broken = copy.deepcopy(VALID_EXAMPLES[kind])
-    if kind in {"review_findings", "telemetry_matrix", "occupancy_snapshot", "capture_estimate"}:
+    if kind in {"review_findings", "telemetry_matrix", "occupancy_snapshot", "capture_estimate", "hazard_map"}:
         broken["run"].pop("run_id", None)
     else:
         broken.pop("run_id", None)
