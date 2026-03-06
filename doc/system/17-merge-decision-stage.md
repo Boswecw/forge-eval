@@ -10,6 +10,7 @@ Input:
 Output:
 
 - `merge_decision.json` (schema kind: `merge_decision`)
+- Downstream consumer: Pack M `evidence_bundle` stage
 
 ## Execution Model
 
@@ -67,7 +68,7 @@ It does not:
 - perform git operations
 - execute or recommend a merge command
 - assemble evidence bundles
-- invoke the Rust evidence CLI in the active runtime path
+- invoke the Rust evidence CLI itself; bounded runtime evidence integration begins in Pack M
 - mutate upstream artifacts
 
 ## Fail-Closed Behavior

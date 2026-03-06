@@ -13,7 +13,8 @@
 9. Hidden-defect subsystem (`services/capture_counts.py`, `services/chao1.py`, `services/ice.py`, `services/capture_selection.py`, `services/capture_summary.py`)
 10. Hazard subsystem (`services/hazard_model.py`, `services/hazard_rows.py`, `services/hazard_summary.py`)
 11. Merge-decision subsystem (`services/merge_decision_model.py`, `services/merge_decision_reasons.py`, `services/merge_decision_summary.py`)
-12. Evidence subsystem (Rust binary under `rust/forge-evidence`, Python wrapper in `evidence_cli.py`)
+12. Evidence-bundle subsystem (`services/evidence_bundle_model.py`, `services/evidence_bundle_manifest.py`, `services/evidence_bundle_summary.py`)
+13. Evidence subsystem (Rust binary under `rust/forge-evidence`, Python wrapper in `evidence_cli.py`)
 
 ## Runtime Flow (`forge-eval run`)
 
@@ -31,6 +32,7 @@
    - `capture_estimate`
    - `hazard_map`
    - `merge_decision`
+   - `evidence_bundle`
 7. Validate each stage artifact against strict schema.
 8. Write schema-valid artifacts to output directory.
 
@@ -48,4 +50,4 @@
 - Rust owns deterministic evidence primitives.
 - Cross-language integration is subprocess-based only.
 - No Python fallback implementation for evidence primitives.
-- Current A-L runtime boundary: the stage pipeline does not invoke `evidence_cli.py`; Rust evidence remains a verified helper subsystem until a later slice wires it into emitted artifact handling.
+- Current A-M runtime boundary: Packs A-L remain Python-owned stage logic, and Pack M invokes `evidence_cli.py` only for canonical JSON, artifact ID, and hashchain assembly inside `evidence_bundle`.

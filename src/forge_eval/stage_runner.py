@@ -7,6 +7,7 @@ from typing import Any
 
 from forge_eval.errors import StageError, ValidationError
 from forge_eval.stages.capture_estimate import run_stage as run_capture_estimate_stage
+from forge_eval.stages.evidence_bundle import run_stage as run_evidence_bundle_stage
 from forge_eval.stages.hazard_map import run_stage as run_hazard_map_stage
 from forge_eval.stages.merge_decision import run_stage as run_merge_decision_stage
 from forge_eval.services.git_diff import resolve_commit
@@ -27,6 +28,7 @@ STAGE_ORDER = (
     "capture_estimate",
     "hazard_map",
     "merge_decision",
+    "evidence_bundle",
 )
 STAGE_TO_ARTIFACT_KIND = {
     "risk_heatmap": "risk_heatmap",
@@ -37,6 +39,7 @@ STAGE_TO_ARTIFACT_KIND = {
     "capture_estimate": "capture_estimate",
     "hazard_map": "hazard_map",
     "merge_decision": "merge_decision",
+    "evidence_bundle": "evidence_bundle",
 }
 
 
@@ -58,12 +61,14 @@ def _run_stage(
     *,
     stage: str,
     repo_path: Path,
+    out_dir: Path,
     base_ref: str,
     head_ref: str,
     base_commit: str,
     head_commit: str,
     run_id: str,
     config: dict[str, Any],
+    resolved_config_artifact: dict[str, Any],
     prior_artifacts: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
     if stage == "risk_heatmap":
@@ -216,6 +221,41 @@ def _run_stage(
             hazard_map_artifact=hazard_artifact,
         )
 
+    if stage == "evidence_bundle":
+        required_artifacts = {
+            "risk_heatmap": prior_artifacts.get("risk_heatmap"),
+            "context_slices": prior_artifacts.get("context_slices"),
+            "review_findings": prior_artifacts.get("review_findings"),
+            "telemetry_matrix": prior_artifacts.get("telemetry_matrix"),
+            "occupancy_snapshot": prior_artifacts.get("occupancy_snapshot"),
+            "capture_estimate": prior_artifacts.get("capture_estimate"),
+            "hazard_map": prior_artifacts.get("hazard_map"),
+            "merge_decision": prior_artifacts.get("merge_decision"),
+        }
+        for kind, artifact in required_artifacts.items():
+            if artifact is None:
+                raise StageError(
+                    f"evidence_bundle stage requires {kind} artifact",
+                    stage=stage,
+                )
+        return run_evidence_bundle_stage(
+            repo_path=repo_path,
+            artifacts_dir=out_dir,
+            base_ref=base_ref,
+            head_ref=head_ref,
+            run_id=run_id,
+            config=config,
+            resolved_config_artifact=resolved_config_artifact,
+            risk_heatmap_artifact=required_artifacts["risk_heatmap"],
+            context_slices_artifact=required_artifacts["context_slices"],
+            review_findings_artifact=required_artifacts["review_findings"],
+            telemetry_matrix_artifact=required_artifacts["telemetry_matrix"],
+            occupancy_snapshot_artifact=required_artifacts["occupancy_snapshot"],
+            capture_estimate_artifact=required_artifacts["capture_estimate"],
+            hazard_map_artifact=required_artifacts["hazard_map"],
+            merge_decision_artifact=required_artifacts["merge_decision"],
+        )
+
     raise StageError("unknown stage requested", stage=stage, details={"stage": stage})
 
 
@@ -269,12 +309,14 @@ def run_pipeline(
         artifact = _run_stage(
             stage=stage,
             repo_path=repo,
+            out_dir=out,
             base_ref=base_ref,
             head_ref=head_ref,
             base_commit=base_commit,
             head_commit=head_commit,
             run_id=run_id,
             config=config,
+            resolved_config_artifact=resolved_config_artifact,
             prior_artifacts=artifact_results,
         )
 

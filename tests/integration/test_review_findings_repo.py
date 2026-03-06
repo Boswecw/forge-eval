@@ -9,6 +9,7 @@ from forge_eval.config import normalize_config
 from forge_eval.stage_runner import run_pipeline
 from forge_eval.validation.schema_loader import load_schema
 from forge_eval.validation.validate_artifact import load_json_file, validate_instance
+from tests._evidence_test_helper import write_fake_evidence_binary
 
 
 pytestmark = pytest.mark.integration
@@ -40,10 +41,13 @@ def _commit_all(repo: Path, message: str) -> None:
     _run(["git", "commit", "-m", message], repo)
 
 
-def test_pipeline_emits_review_telemetry_occupancy_capture_hazard_and_merge_decision_artifacts_and_is_deterministic(
+def test_pipeline_emits_review_telemetry_occupancy_capture_hazard_merge_decision_and_evidence_bundle_artifacts_and_is_deterministic(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo = _init_repo(tmp_path)
+    fake = write_fake_evidence_binary(tmp_path / "forge-evidence")
+    monkeypatch.setenv("FORGE_EVIDENCE_BIN", str(fake))
     (repo / "a.py").write_text("def add(a, b):\n    return a + b\n", encoding="utf-8")
     (repo / "README.md").write_text("# Example\n", encoding="utf-8")
     _commit_all(repo, "base")
@@ -85,6 +89,8 @@ def test_pipeline_emits_review_telemetry_occupancy_capture_hazard_and_merge_deci
     assert "hazard_map.json" in result2["artifacts_written"]
     assert "merge_decision.json" in result1["artifacts_written"]
     assert "merge_decision.json" in result2["artifacts_written"]
+    assert "evidence_bundle.json" in result1["artifacts_written"]
+    assert "evidence_bundle.json" in result2["artifacts_written"]
 
     artifact1 = out1 / "review_findings.json"
     artifact2 = out2 / "review_findings.json"
@@ -109,6 +115,10 @@ def test_pipeline_emits_review_telemetry_occupancy_capture_hazard_and_merge_deci
     merge1 = out1 / "merge_decision.json"
     merge2 = out2 / "merge_decision.json"
     assert merge1.read_bytes() == merge2.read_bytes()
+
+    evidence1 = out1 / "evidence_bundle.json"
+    evidence2 = out2 / "evidence_bundle.json"
+    assert evidence1.read_bytes() == evidence2.read_bytes()
 
     schema = load_schema("review_findings")
     parsed = load_json_file(artifact1)
@@ -140,9 +150,20 @@ def test_pipeline_emits_review_telemetry_occupancy_capture_hazard_and_merge_deci
     validate_instance(merge, merge_schema, artifact_kind="merge_decision")
     assert merge["decision"]["result"] in {"allow", "caution", "block"}
 
+    evidence_schema = load_schema("evidence_bundle")
+    evidence = load_json_file(evidence1)
+    validate_instance(evidence, evidence_schema, artifact_kind="evidence_bundle")
+    assert evidence["decision"]["result"] == merge["decision"]["result"]
+    assert evidence["summary"]["artifact_count"] == 9
 
-def test_pipeline_coalesces_cross_reviewer_defects_when_reviewers_share_identity(tmp_path: Path) -> None:
+
+def test_pipeline_coalesces_cross_reviewer_defects_when_reviewers_share_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     repo = _init_repo(tmp_path)
+    fake = write_fake_evidence_binary(tmp_path / "forge-evidence")
+    monkeypatch.setenv("FORGE_EVIDENCE_BIN", str(fake))
     (repo / "README.md").write_text("# Example\n", encoding="utf-8")
     _commit_all(repo, "base")
 

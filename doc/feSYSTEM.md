@@ -1,6 +1,6 @@
 # Forge Eval System Documentation
 
-**Document version:** 1.2 (2026-03-06) — Implemented Pack L merge decision stage and normalized to Forge Documentation Protocol v1
+**Document version:** 1.3 (2026-03-06) — Implemented Pack M evidence bundle stage and bounded runtime forge-evidence integration
 **Protocol:** Forge Documentation Protocol v1
 
 This `doc/system/` tree uses explicit truth classes:
@@ -33,6 +33,7 @@ Assembly contract:
 | §15 | [15-capture-estimate-stage.md](15-capture-estimate-stage.md) | Pack J deterministic hidden-defect estimation via Chao1 and ICE |
 | §16 | [16-hazard-map-stage.md](16-hazard-map-stage.md) | Pack K deterministic hazard mapping from risk, telemetry, occupancy, and capture pressure |
 | §17 | [17-merge-decision-stage.md](17-merge-decision-stage.md) | Pack L deterministic advisory merge decision from Pack K hazard evidence |
+| §18 | [18-evidence-bundle-stage.md](18-evidence-bundle-stage.md) | Pack M deterministic evidence bundle assembly from the fixed A-L artifact chain |
 
 ## Quick Assembly
 
@@ -48,7 +49,7 @@ bash doc/system/BUILD.sh   # Assembles all parts into doc/feSYSTEM.md
 
 ## Purpose
 
-`forge-eval` is a deterministic, fail-closed evaluation foundation implementing Packs A-L:
+`forge-eval` is a deterministic, fail-closed evaluation foundation implementing Packs A-M:
 
 - Pack A: Python scaffold, CLI, orchestration, error model.
 - Pack B: Rust evidence binary (`forge-evidence`) for canonical JSON/hash/hashchain primitives.
@@ -62,14 +63,15 @@ bash doc/system/BUILD.sh   # Assembles all parts into doc/feSYSTEM.md
 - Pack J: Deterministic hidden-defect estimation (`capture_estimate`) with Chao1/ICE and conservative selection.
 - Pack K: Deterministic hazard assessment (`hazard_map`) combining structural risk, observed burden, residual occupancy concern, and hidden-defect pressure.
 - Pack L: Deterministic advisory merge decision (`merge_decision`) from Pack K hazard evidence.
+- Pack M: Deterministic evidence bundle assembly (`evidence_bundle`) packaging the fixed A-L artifact chain.
 
 ## Current Pipeline Boundary
 
 Implemented path:
 
-`config -> risk_heatmap -> context_slices -> review_findings -> telemetry_matrix -> occupancy_snapshot -> capture_estimate -> hazard_map -> merge_decision`
+`config -> risk_heatmap -> context_slices -> review_findings -> telemetry_matrix -> occupancy_snapshot -> capture_estimate -> hazard_map -> merge_decision -> evidence_bundle`
 
-Planned downstream (not implemented here): bundle assembly.
+Planned downstream (not implemented here): publish/release or governance execution beyond evidence assembly.
 
 ## Governing Principles
 
@@ -97,7 +99,8 @@ Planned downstream (not implemented here): bundle assembly.
 9. Hidden-defect subsystem (`services/capture_counts.py`, `services/chao1.py`, `services/ice.py`, `services/capture_selection.py`, `services/capture_summary.py`)
 10. Hazard subsystem (`services/hazard_model.py`, `services/hazard_rows.py`, `services/hazard_summary.py`)
 11. Merge-decision subsystem (`services/merge_decision_model.py`, `services/merge_decision_reasons.py`, `services/merge_decision_summary.py`)
-12. Evidence subsystem (Rust binary under `rust/forge-evidence`, Python wrapper in `evidence_cli.py`)
+12. Evidence-bundle subsystem (`services/evidence_bundle_model.py`, `services/evidence_bundle_manifest.py`, `services/evidence_bundle_summary.py`)
+13. Evidence subsystem (Rust binary under `rust/forge-evidence`, Python wrapper in `evidence_cli.py`)
 
 ## Runtime Flow (`forge-eval run`)
 
@@ -115,6 +118,7 @@ Planned downstream (not implemented here): bundle assembly.
    - `capture_estimate`
    - `hazard_map`
    - `merge_decision`
+   - `evidence_bundle`
 7. Validate each stage artifact against strict schema.
 8. Write schema-valid artifacts to output directory.
 
@@ -132,7 +136,7 @@ Planned downstream (not implemented here): bundle assembly.
 - Rust owns deterministic evidence primitives.
 - Cross-language integration is subprocess-based only.
 - No Python fallback implementation for evidence primitives.
-- Current A-L runtime boundary: the stage pipeline does not invoke `evidence_cli.py`; Rust evidence remains a verified helper subsystem until a later slice wires it into emitted artifact handling.
+- Current A-M runtime boundary: Packs A-L remain Python-owned stage logic, and Pack M invokes `evidence_cli.py` only for canonical JSON, artifact ID, and hashchain assembly inside `evidence_bundle`.
 
 ---
 
@@ -201,6 +205,7 @@ repo/
       capture_estimate.py
       hazard_map.py
       merge_decision.py
+      evidence_bundle.py
     services/
       git_diff.py
       risk_analysis.py
@@ -227,6 +232,9 @@ repo/
       merge_decision_model.py
       merge_decision_reasons.py
       merge_decision_summary.py
+      evidence_bundle_model.py
+      evidence_bundle_manifest.py
+      evidence_bundle_summary.py
     schemas/
       *.schema.json
     validation/
@@ -246,6 +254,7 @@ repo/
     test_capture_estimate_stage.py
     test_hazard_map_stage.py
     test_merge_decision_stage.py
+    test_evidence_bundle_stage.py
     test_finding_normalizer.py
     test_defect_identity.py
     test_schemas.py
@@ -270,7 +279,7 @@ repo/
 ## Responsibility Split
 
 - `stages/`: stage entrypoints that produce artifact objects.
-- `services/`: deterministic helpers (git access, scoring, range math, extraction, finding normalization, defect identity, reviewer health/applicability, telemetry matrix building, occupancy prior/posterior computation, hidden-defect counting/estimation, hazard scoring, advisory merge-decision reasoning).
+- `services/`: deterministic helpers (git access, scoring, range math, extraction, finding normalization, defect identity, reviewer health/applicability, telemetry matrix building, occupancy prior/posterior computation, hidden-defect counting/estimation, hazard scoring, advisory merge-decision reasoning, evidence-bundle manifest assembly).
 - `reviewers/`: deterministic reviewer adapters and execution wrappers.
 - `validation/`: schema lookup + JSON-schema enforcement.
 - `schemas/`: locked contracts for implemented and future artifacts.
@@ -305,6 +314,7 @@ Default stage order and enabled set:
 6. `capture_estimate`
 7. `hazard_map`
 8. `merge_decision`
+9. `evidence_bundle`
 
 Stage dependency constraints:
 
@@ -315,6 +325,7 @@ Stage dependency constraints:
 - `capture_estimate` requires `occupancy_snapshot`
 - `hazard_map` requires `capture_estimate`
 - `merge_decision` requires `hazard_map`
+- `evidence_bundle` requires `merge_decision`
 
 ## Pack F/G/H/I/J/K/L Config Keys (Current)
 
@@ -354,6 +365,7 @@ Stage dependency constraints:
 - `merge_decision_caution_threshold` (float in `[0,1]`)
 - `merge_decision_block_threshold` (float in `[0,1]`)
 - `merge_decision_block_on_hazard_blocking_signals` (bool)
+- `evidence_bundle_model_version` (`evidence_bundle_rev1`)
 
 ## Artifacts Written by `run`
 
@@ -366,6 +378,7 @@ Stage dependency constraints:
 - `capture_estimate.json` (if enabled)
 - `hazard_map.json` (if enabled)
 - `merge_decision.json` (if enabled)
+- `evidence_bundle.json` (if enabled)
 
 All Python-written artifacts use deterministic JSON encoding:
 
@@ -416,11 +429,11 @@ Environment override:
 ## Current Runtime Posture
 
 - `forge-evidence` and `evidence_cli.py` are implemented, directly callable, and covered by Rust/Python tests.
-- Current A-L pipeline stages do not invoke the evidence wrapper during `forge-eval run` or `forge-eval validate`.
-- This is the active boundary by design in the current repo state:
-  - evidence primitives are available
-  - mainline artifact emission remains Python-owned
-  - downstream evidence-bundle assembly remains out of scope
+- Pack M is the first runtime stage that invokes the evidence wrapper during `forge-eval run`.
+- This is the active boundary in the current repo state:
+  - Packs A-L remain Python-owned stage logic
+  - Pack M invokes `forge-evidence` only for canonical JSON, artifact identity, and hashchain work
+  - signing, publishing, and release execution remain out of scope
 
 ---
 
@@ -513,7 +526,7 @@ For each changed target file (non-deleted, extension-allowed, non-excluded):
 
 # §9 - Schemas, Validation, and Error Model
 
-## Schema Set (Pack D + Pack G/H/I/J/K/L Extensions)
+## Schema Set (Pack D + Pack G/H/I/J/K/L/M Extensions)
 
 Implemented schema files:
 
@@ -578,6 +591,13 @@ All schemas are Draft 2020-12 and strict at root (`additionalProperties: false`)
 - deterministic reason-code vocabulary for blocking and cautionary Pack K-derived conditions
 - provenance locked to `hazard_map.json` and `merge_rev1`
 
+`evidence_bundle.schema.json` enforces Pack M layout:
+
+- `artifact_version`, `kind`, `run`, `inputs`, `artifacts`, `decision`, `manifest`, `summary`, `model`, `provenance`
+- deterministic artifact inventory with `canonical_sha256`, `artifact_id`, and stable relative paths
+- bounded manifest from the Rust hashchain primitive (`forge-evidence-chain-v1`)
+- provenance locked to the fixed A-L artifact chain and `evidence_bundle_rev1`
+
 ## Validation Behavior
 
 - Schema loader fails on unknown artifact kind or missing schema files.
@@ -606,7 +626,7 @@ CLI exits non-zero on any structured error.
 
 # §10 - Testing and Determinism
 
-## Python Test Coverage (Packs A-L)
+## Python Test Coverage (Packs A-M)
 
 - CLI smoke + failure behavior
 - config normalization and rejection cases
@@ -628,9 +648,11 @@ CLI exits non-zero on any structured error.
 - hazard fail-closed behavior for missing risk mapping, run/commit mismatch, inconsistent defect sets, and invalid model version
 - merge decision stage behavior (allow/caution/block routing, stable reason codes, hazard-only advisory boundary)
 - merge decision fail-closed behavior for missing hazard input, run mismatch, invalid hazard tier, and unsupported model version
+- evidence bundle stage behavior (artifact inventory ordering, bounded Rust evidence integration, stable manifest/hashchain assembly)
+- evidence bundle fail-closed behavior for missing upstream files, run mismatch, unsupported model version, and runtime evidence-cli failure
 - golden-file checks for context slices
 - repeatability checks using byte-equality of serialized artifacts
-- integration proof that pipeline emits deterministic `review_findings.json`, `telemetry_matrix.json`, `occupancy_snapshot.json`, `capture_estimate.json`, `hazard_map.json`, and `merge_decision.json`
+- integration proof that pipeline emits deterministic `review_findings.json`, `telemetry_matrix.json`, `occupancy_snapshot.json`, `capture_estimate.json`, `hazard_map.json`, `merge_decision.json`, and `evidence_bundle.json`
 
 ## Rust Test Coverage (Pack B)
 
@@ -696,7 +718,7 @@ export FORGE_EVIDENCE_BIN=/abs/path/to/rust/forge-evidence/target/debug/forge-ev
 Current evidence boundary:
 
 - the Rust evidence binary is verified and callable
-- `forge-eval run` / `forge-eval validate` do not currently invoke it in the main A-L stage path
+- Pack M invokes it in the main A-M stage path only for canonical JSON, artifact ID, and hashchain work
 
 ## Execute Pipeline
 
@@ -727,7 +749,8 @@ forge-eval validate --artifacts /abs/path/to/artifacts
 8. Confirm capture outputs include Chao1, ICE, and selected hidden estimate in `capture_estimate.json`.
 9. Confirm hazard output includes bounded `hazard_score`, deterministic `hazard_tier`, and explicit uncertainty flags in `hazard_map.json`.
 10. Confirm merge decision output includes advisory `allow | caution | block` result and deterministic `reason_codes` in `merge_decision.json`.
-11. Run Python and Rust tests before merge.
+11. Confirm evidence bundle output includes the full A-L artifact inventory, stable `canonical_sha256` / `artifact_id` values, and a deterministic `final_chain_hash` in `evidence_bundle.json`.
+12. Run Python and Rust tests before merge.
 
 ## Guardrails for Next Packs
 
@@ -739,7 +762,8 @@ forge-eval validate --artifacts /abs/path/to/artifacts
 6. Preserve occupancy conservatism: weak/null-heavy coverage must not be treated as strong suppression.
 7. Preserve capture conservatism: singleton-heavy sparse evidence must not collapse to low hidden-defect estimates.
 8. Preserve hazard conservatism: hidden-defect pressure and uncertainty must not be converted into a clean-looking change set.
-9. Preserve merge-decision narrowness: Pack L must consume hazard evidence conservatively and remain advisory; evidence bundle assembly stays in Pack M.
+9. Preserve merge-decision narrowness: Pack L must consume hazard evidence conservatively and remain advisory.
+10. Preserve Pack M narrowness: evidence bundle assembly must stay local, deterministic, and bounded to packaging/manifest work; no publish or release actions.
 
 ---
 
@@ -1094,6 +1118,7 @@ Input:
 Output:
 
 - `merge_decision.json` (schema kind: `merge_decision`)
+- Downstream consumer: Pack M `evidence_bundle` stage
 
 ## Execution Model
 
@@ -1151,7 +1176,7 @@ It does not:
 - perform git operations
 - execute or recommend a merge command
 - assemble evidence bundles
-- invoke the Rust evidence CLI in the active runtime path
+- invoke the Rust evidence CLI itself; bounded runtime evidence integration begins in Pack M
 - mutate upstream artifacts
 
 ## Fail-Closed Behavior
@@ -1169,3 +1194,100 @@ It does not:
 - reason codes are emitted in stable canonical order
 - no clock fields appear in the artifact
 - repeated identical inputs must produce byte-identical `merge_decision.json`
+
+---
+
+# §18 - Pack M: Evidence Bundle Stage
+
+## Stage Contract
+
+Input:
+
+- fixed upstream artifact chain through `merge_decision.json`
+- normalized evidence-bundle config block (`evidence_bundle_model_version`)
+- bounded runtime `forge-evidence` access via `evidence_cli.py`
+
+Output:
+
+- `evidence_bundle.json` (schema kind: `evidence_bundle`)
+
+## Execution Model
+
+1. Validate the fixed A-L artifact chain is present and kind-consistent.
+2. Validate deterministic run alignment using `config.resolved.json` and `merge_decision.json`.
+3. Load the locked evidence-bundle model (`evidence_bundle_rev1`).
+4. Invoke `forge-evidence` through `evidence_cli.py` for:
+   - canonical JSON bytes
+   - deterministic artifact IDs
+   - bounded hashchain assembly
+5. Cross-check the Rust hashchain output against the Python-side artifact inventory.
+6. Emit a schema-valid `evidence_bundle.json` manifest artifact.
+
+## Runtime Evidence Boundary
+
+Pack M is the first runtime stage that invokes `forge-evidence`.
+
+The active boundary is intentionally narrow:
+
+- canonical JSON only
+- artifact identity only
+- hashchain only
+
+Pack M does not add:
+
+- signing
+- publishing
+- deployment
+- release execution
+- git operations
+
+## Artifact Semantics
+
+`evidence_bundle.json` packages the fixed A-L proof surface into:
+
+- `run`: deterministic run provenance and merge-decision source pointer
+- `inputs`: stable artifact list and bounded evidence runtime mode
+- `artifacts`: ordered artifact inventory with `canonical_sha256`, `artifact_id`, and `file_size_bytes`
+- `decision`: bounded reference to the final advisory merge posture
+- `manifest`: deterministic hashchain seed, artifact order, chain hashes, and `final_chain_hash`
+- `summary`: compact deterministic coverage/decision summary
+- `model`: locked Pack M assembly model metadata
+- `provenance`: deterministic algorithm metadata and explicit runtime evidence integration mode
+
+## Model Rules (Rev 1)
+
+- model version: `evidence_bundle_rev1`
+- mode: `deterministic_manifest_assembly`
+- evidence runtime: `forge_evidence_cli`
+- hash strategy: canonical JSON SHA-256
+- artifact ID strategy: `sha256(kind + NUL + canonical_json_bytes)`
+- hashchain strategy: `forge-evidence-chain-v1`
+
+Artifact order is fixed:
+
+1. `config.resolved.json`
+2. `risk_heatmap.json`
+3. `context_slices.json`
+4. `review_findings.json`
+5. `telemetry_matrix.json`
+6. `occupancy_snapshot.json`
+7. `capture_estimate.json`
+8. `hazard_map.json`
+9. `merge_decision.json`
+
+## Fail-Closed Behavior
+
+- missing upstream artifact file -> stage failure
+- kind mismatch in the fixed A-L artifact chain -> stage failure
+- run/ref mismatch between pipeline and `config.resolved.json` or `merge_decision.json` -> stage failure
+- unsupported `evidence_bundle_model_version` -> stage failure
+- runtime `forge-evidence` execution failure -> `EvidenceCliError`
+- malformed or inconsistent hashchain output -> stage failure
+- schema validation failure -> run failure
+
+## Determinism Notes
+
+- artifact inventory order is fixed and explicit
+- manifest paths are relative and stable across output directories
+- Pack M does not hash or embed its own output file recursively
+- repeated identical inputs must produce byte-identical `evidence_bundle.json`

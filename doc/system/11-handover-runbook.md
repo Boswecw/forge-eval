@@ -40,7 +40,7 @@ export FORGE_EVIDENCE_BIN=/abs/path/to/rust/forge-evidence/target/debug/forge-ev
 Current evidence boundary:
 
 - the Rust evidence binary is verified and callable
-- `forge-eval run` / `forge-eval validate` do not currently invoke it in the main A-L stage path
+- Pack M invokes it in the main A-M stage path only for canonical JSON, artifact ID, and hashchain work
 
 ## Execute Pipeline
 
@@ -71,7 +71,8 @@ forge-eval validate --artifacts /abs/path/to/artifacts
 8. Confirm capture outputs include Chao1, ICE, and selected hidden estimate in `capture_estimate.json`.
 9. Confirm hazard output includes bounded `hazard_score`, deterministic `hazard_tier`, and explicit uncertainty flags in `hazard_map.json`.
 10. Confirm merge decision output includes advisory `allow | caution | block` result and deterministic `reason_codes` in `merge_decision.json`.
-11. Run Python and Rust tests before merge.
+11. Confirm evidence bundle output includes the full A-L artifact inventory, stable `canonical_sha256` / `artifact_id` values, and a deterministic `final_chain_hash` in `evidence_bundle.json`.
+12. Run Python and Rust tests before merge.
 
 ## Guardrails for Next Packs
 
@@ -83,4 +84,5 @@ forge-eval validate --artifacts /abs/path/to/artifacts
 6. Preserve occupancy conservatism: weak/null-heavy coverage must not be treated as strong suppression.
 7. Preserve capture conservatism: singleton-heavy sparse evidence must not collapse to low hidden-defect estimates.
 8. Preserve hazard conservatism: hidden-defect pressure and uncertainty must not be converted into a clean-looking change set.
-9. Preserve merge-decision narrowness: Pack L must consume hazard evidence conservatively and remain advisory; evidence bundle assembly stays in Pack M.
+9. Preserve merge-decision narrowness: Pack L must consume hazard evidence conservatively and remain advisory.
+10. Preserve Pack M narrowness: evidence bundle assembly must stay local, deterministic, and bounded to packaging/manifest work; no publish or release actions.

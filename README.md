@@ -26,13 +26,14 @@ Current implemented packs:
 * **Pack J**: Hidden-defect capture estimate + Chao1/ICE + conservative selected hidden burden
 * **Pack K**: Deterministic conservative hazard mapping (`hazard_map`) from structural risk + telemetry + occupancy + hidden-defect pressure
 * **Pack L**: Deterministic advisory merge decision (`merge_decision`) from `hazard_map`
+* **Pack M**: Deterministic evidence bundle assembly (`evidence_bundle`) from the fixed A-L artifact chain
 
 ## Repo role
 
 Forge Eval implements the deterministic eval pipeline foundation:
 
 ```text
-risk -> context slices -> reviewer findings -> telemetry matrix -> occupancy snapshot -> capture estimate -> hazard map -> merge decision
+risk -> context slices -> reviewer findings -> telemetry matrix -> occupancy snapshot -> capture estimate -> hazard map -> merge decision -> evidence bundle
 ```
 
 Core invariants:
@@ -57,6 +58,7 @@ rust/forge-evidence/target/debug/forge-evidence
 ```
 
 Use `FORGE_EVIDENCE_BIN` to point the Python wrapper to the binary if it is not on `PATH`.
+Pack M is the first runtime stage that invokes this binary.
 
 ## Install Python package
 
@@ -101,11 +103,12 @@ Depending on enabled stages, Forge Eval currently emits:
 * `capture_estimate.json`
 * `hazard_map.json`
 * `merge_decision.json`
+* `evidence_bundle.json`
 
 ## Current fixed stage order
 
 ```text
-risk_heatmap -> context_slices -> review_findings -> telemetry_matrix -> occupancy_snapshot -> capture_estimate -> hazard_map -> merge_decision
+risk_heatmap -> context_slices -> review_findings -> telemetry_matrix -> occupancy_snapshot -> capture_estimate -> hazard_map -> merge_decision -> evidence_bundle
 ```
 
 ## Determinism notes
@@ -124,13 +127,13 @@ risk_heatmap -> context_slices -> review_findings -> telemetry_matrix -> occupan
 
 ## Status
 
-Forge Eval Packs A–L are implemented in the current repo state.
+Forge Eval Packs A-M are implemented in the current repo state.
 
-The current A–L runtime path has been verified on a real local target repo:
+The current A–M runtime path has been verified on a real local target repo:
 
-- emitted artifact set: `config.resolved.json`, `risk_heatmap.json`, `context_slices.json`, `review_findings.json`, `telemetry_matrix.json`, `occupancy_snapshot.json`, `capture_estimate.json`, `hazard_map.json`, `merge_decision.json`
+- emitted artifact set: `config.resolved.json`, `risk_heatmap.json`, `context_slices.json`, `review_findings.json`, `telemetry_matrix.json`, `occupancy_snapshot.json`, `capture_estimate.json`, `hazard_map.json`, `merge_decision.json`, `evidence_bundle.json`
 - `forge-eval validate` passed on the emitted artifacts
-- repeated identical runs were byte-identical across all primary artifacts, including `merge_decision.json`
+- repeated identical runs were byte-identical across all primary artifacts, including `evidence_bundle.json`
 - fail-closed probes were confirmed for config, validation, reviewer-failure, and cross-artifact mismatch cases
 
 Verification report:
@@ -138,9 +141,13 @@ Verification report:
 - `reports/forge_eval_a_to_j_verification_report_rev1.md`
 - `reports/forge_eval_pack_k_hazard_implementation_report_rev1.md`
 - `reports/forge_eval_pack_l_merge_decision_implementation_report_rev1.md`
-
-Downstream pack M, evidence bundle assembly, is still not implemented.
+- `reports/forge_eval_pack_m_evidence_bundle_implementation_report_rev1.md`
 
 ## Important note on Rust evidence
 
-The Rust evidence subsystem is implemented, callable, and tested, but it is not part of the main A–L stage pipeline in the current runtime. It remains a verified helper boundary until a later slice explicitly wires evidence primitives into emitted artifact handling or downstream bundle assembly.
+The Rust evidence subsystem is implemented, callable, and tested. Pack M begins bounded runtime integration:
+
+- Packs A-L remain Python-owned stage logic
+- Pack M invokes `forge-evidence` only for canonical JSON, artifact ID, and hashchain work
+- the runtime boundary remains local and deterministic
+- signing, publishing, and release execution remain out of scope

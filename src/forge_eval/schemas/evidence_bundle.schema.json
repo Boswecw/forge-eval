@@ -3,52 +3,187 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema_version",
+    "artifact_version",
     "kind",
-    "run_id",
-    "artifact_manifest",
-    "hashchain",
-    "final_sha256",
+    "run",
+    "inputs",
+    "artifacts",
+    "decision",
+    "manifest",
+    "summary",
+    "model",
     "provenance"
   ],
   "properties": {
-    "schema_version": {"type": "string", "const": "v1"},
+    "artifact_version": {"type": "integer", "const": 1},
     "kind": {"type": "string", "const": "evidence_bundle"},
-    "run_id": {"type": "string", "minLength": 1},
-    "artifact_manifest": {
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "repo_path",
+        "base_ref",
+        "head_ref",
+        "base_commit",
+        "head_commit",
+        "merge_decision_artifact"
+      ],
+      "properties": {
+        "run_id": {"type": "string", "minLength": 1},
+        "repo_path": {"type": "string", "minLength": 1},
+        "base_ref": {"type": "string", "minLength": 1},
+        "head_ref": {"type": "string", "minLength": 1},
+        "base_commit": {"type": "string", "minLength": 1},
+        "head_commit": {"type": "string", "minLength": 1},
+        "merge_decision_artifact": {"type": "string", "const": "merge_decision.json"}
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "evidence_runtime",
+        "artifacts",
+        "merge_decision_artifact"
+      ],
+      "properties": {
+        "mode": {"type": "string", "const": "deterministic_evidence_assembly"},
+        "evidence_runtime": {"type": "string", "const": "forge_evidence_cli"},
+        "artifacts": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 9
+        },
+        "merge_decision_artifact": {"type": "string", "const": "merge_decision.json"}
+      }
+    },
+    "artifacts": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["kind", "path", "sha256", "artifact_id"],
+        "required": ["index", "kind", "path", "canonical_sha256", "artifact_id", "file_size_bytes"],
         "properties": {
+          "index": {"type": "integer", "minimum": 0},
           "kind": {"type": "string", "minLength": 1},
           "path": {"type": "string", "minLength": 1},
-          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-          "artifact_id": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+          "canonical_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "artifact_id": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "file_size_bytes": {"type": "integer", "minimum": 1}
+        }
+      },
+      "minItems": 9
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_artifact",
+        "result",
+        "advisory",
+        "blocking_conditions_present",
+        "caution_conditions_present",
+        "reason_codes"
+      ],
+      "properties": {
+        "source_artifact": {"type": "string", "const": "merge_decision.json"},
+        "result": {"type": "string", "enum": ["allow", "caution", "block"]},
+        "advisory": {"type": "boolean"},
+        "blocking_conditions_present": {"type": "boolean"},
+        "caution_conditions_present": {"type": "boolean"},
+        "reason_codes": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 1
         }
       }
     },
-    "hashchain": {
+    "manifest": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["chain_hashes", "final_chain_hash"],
+      "required": ["hashchain_seed", "artifact_order", "chain_hashes", "final_chain_hash"],
       "properties": {
+        "hashchain_seed": {"type": "string", "const": "forge-evidence-chain-v1"},
+        "artifact_order": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 9
+        },
         "chain_hashes": {
           "type": "array",
           "items": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-          "minItems": 1
+          "minItems": 10
         },
         "final_chain_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
       }
     },
-    "final_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_count",
+        "included_kinds",
+        "final_decision",
+        "reason_code_count",
+        "blocking_conditions_present",
+        "caution_conditions_present",
+        "dominant_hazard_tier",
+        "final_chain_hash"
+      ],
+      "properties": {
+        "artifact_count": {"type": "integer", "minimum": 9},
+        "included_kinds": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 9
+        },
+        "final_decision": {"type": "string", "enum": ["allow", "caution", "block"]},
+        "reason_code_count": {"type": "integer", "minimum": 1},
+        "blocking_conditions_present": {"type": "boolean"},
+        "caution_conditions_present": {"type": "boolean"},
+        "dominant_hazard_tier": {
+          "type": "string",
+          "enum": ["low", "guarded", "elevated", "high", "critical"]
+        },
+        "final_chain_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "mode", "evidence_runtime", "parameters"],
+      "properties": {
+        "name": {"type": "string", "const": "evidence_bundle_rev1"},
+        "mode": {"type": "string", "const": "deterministic_manifest_assembly"},
+        "evidence_runtime": {"type": "string", "const": "forge_evidence_cli"},
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["hash_strategy", "artifact_id_strategy", "hashchain_strategy"],
+          "properties": {
+            "hash_strategy": {"type": "string", "const": "canonical_json_sha256"},
+            "artifact_id_strategy": {"type": "string", "const": "kind_nul_canonical_json"},
+            "hashchain_strategy": {"type": "string", "const": "forge_evidence_chain_v1"}
+          }
+        }
+      }
+    },
     "provenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["algorithm"],
+      "required": ["algorithm", "deterministic", "inputs", "model_version", "runtime_evidence_integration"],
       "properties": {
-        "algorithm": {"type": "string", "minLength": 1}
+        "algorithm": {"type": "string", "const": "evidence_bundle_v1"},
+        "deterministic": {"type": "boolean", "const": true},
+        "inputs": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 9
+        },
+        "model_version": {"type": "string", "const": "evidence_bundle_rev1"},
+        "runtime_evidence_integration": {"type": "string", "const": "forge_evidence_cli"}
       }
     }
   }

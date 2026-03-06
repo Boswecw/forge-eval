@@ -1,6 +1,6 @@
 # §9 - Schemas, Validation, and Error Model
 
-## Schema Set (Pack D + Pack G/H/I/J/K/L Extensions)
+## Schema Set (Pack D + Pack G/H/I/J/K/L/M Extensions)
 
 Implemented schema files:
 
@@ -64,6 +64,13 @@ All schemas are Draft 2020-12 and strict at root (`additionalProperties: false`)
 - advisory decision result locked to `allow | caution | block`
 - deterministic reason-code vocabulary for blocking and cautionary Pack K-derived conditions
 - provenance locked to `hazard_map.json` and `merge_rev1`
+
+`evidence_bundle.schema.json` enforces Pack M layout:
+
+- `artifact_version`, `kind`, `run`, `inputs`, `artifacts`, `decision`, `manifest`, `summary`, `model`, `provenance`
+- deterministic artifact inventory with `canonical_sha256`, `artifact_id`, and stable relative paths
+- bounded manifest from the Rust hashchain primitive (`forge-evidence-chain-v1`)
+- provenance locked to the fixed A-L artifact chain and `evidence_bundle_rev1`
 
 ## Validation Behavior
 

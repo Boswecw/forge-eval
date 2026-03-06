@@ -1,6 +1,6 @@
 # §10 - Testing and Determinism
 
-## Python Test Coverage (Packs A-L)
+## Python Test Coverage (Packs A-M)
 
 - CLI smoke + failure behavior
 - config normalization and rejection cases
@@ -22,9 +22,11 @@
 - hazard fail-closed behavior for missing risk mapping, run/commit mismatch, inconsistent defect sets, and invalid model version
 - merge decision stage behavior (allow/caution/block routing, stable reason codes, hazard-only advisory boundary)
 - merge decision fail-closed behavior for missing hazard input, run mismatch, invalid hazard tier, and unsupported model version
+- evidence bundle stage behavior (artifact inventory ordering, bounded Rust evidence integration, stable manifest/hashchain assembly)
+- evidence bundle fail-closed behavior for missing upstream files, run mismatch, unsupported model version, and runtime evidence-cli failure
 - golden-file checks for context slices
 - repeatability checks using byte-equality of serialized artifacts
-- integration proof that pipeline emits deterministic `review_findings.json`, `telemetry_matrix.json`, `occupancy_snapshot.json`, `capture_estimate.json`, `hazard_map.json`, and `merge_decision.json`
+- integration proof that pipeline emits deterministic `review_findings.json`, `telemetry_matrix.json`, `occupancy_snapshot.json`, `capture_estimate.json`, `hazard_map.json`, `merge_decision.json`, and `evidence_bundle.json`
 
 ## Rust Test Coverage (Pack B)
 

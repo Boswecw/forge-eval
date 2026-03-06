@@ -1,6 +1,6 @@
 # Forge Eval System Documentation
 
-**Document version:** 1.2 (2026-03-06) — Implemented Pack L merge decision stage and normalized to Forge Documentation Protocol v1
+**Document version:** 1.3 (2026-03-06) — Implemented Pack M evidence bundle stage and bounded runtime forge-evidence integration
 **Protocol:** Forge Documentation Protocol v1
 
 This `doc/system/` tree uses explicit truth classes:
@@ -33,6 +33,7 @@ Assembly contract:
 | §15 | [15-capture-estimate-stage.md](15-capture-estimate-stage.md) | Pack J deterministic hidden-defect estimation via Chao1 and ICE |
 | §16 | [16-hazard-map-stage.md](16-hazard-map-stage.md) | Pack K deterministic hazard mapping from risk, telemetry, occupancy, and capture pressure |
 | §17 | [17-merge-decision-stage.md](17-merge-decision-stage.md) | Pack L deterministic advisory merge decision from Pack K hazard evidence |
+| §18 | [18-evidence-bundle-stage.md](18-evidence-bundle-stage.md) | Pack M deterministic evidence bundle assembly from the fixed A-L artifact chain |
 
 ## Quick Assembly
 

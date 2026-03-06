@@ -19,7 +19,7 @@ class EvidenceCli:
     def __init__(self, binary: str | None = None) -> None:
         self.binary = binary or os.environ.get("FORGE_EVIDENCE_BIN", "forge-evidence")
 
-    def _run(self, args: list[str]) -> bytes:
+    def _run(self, args: list[str], *, cwd: str | Path | None = None) -> bytes:
         cmd = [self.binary, *args]
         try:
             proc = subprocess.run(
@@ -27,11 +27,16 @@ class EvidenceCli:
                 check=False,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                cwd=str(cwd) if cwd is not None else None,
             )
         except OSError as exc:
             raise EvidenceCliError(
                 f"failed to execute evidence binary: {self.binary}",
-                details={"cmd": cmd, "os_error": str(exc)},
+                details={
+                    "cmd": cmd,
+                    "cwd": None if cwd is None else str(cwd),
+                    "os_error": str(exc),
+                },
             ) from exc
 
         if proc.returncode != 0:
@@ -39,6 +44,7 @@ class EvidenceCli:
                 "evidence binary returned non-zero exit code",
                 details={
                     "cmd": cmd,
+                    "cwd": None if cwd is None else str(cwd),
                     "returncode": proc.returncode,
                     "stderr": proc.stderr.decode("utf-8", errors="replace").strip(),
                     "stdout": proc.stdout.decode("utf-8", errors="replace").strip(),
@@ -47,13 +53,13 @@ class EvidenceCli:
 
         return proc.stdout
 
-    def canonicalize_json(self, input_path: str | Path) -> bytes:
+    def canonicalize_json(self, input_path: str | Path, *, cwd: str | Path | None = None) -> bytes:
         path = str(Path(input_path))
-        return self._run(["canonicalize", path])
+        return self._run(["canonicalize", path], cwd=cwd)
 
-    def sha256_file(self, input_path: str | Path) -> str:
+    def sha256_file(self, input_path: str | Path, *, cwd: str | Path | None = None) -> str:
         path = str(Path(input_path))
-        out = self._run(["sha256", path]).decode("utf-8", errors="replace").strip()
+        out = self._run(["sha256", path], cwd=cwd).decode("utf-8", errors="replace").strip()
         if len(out) != 64:
             raise EvidenceCliError(
                 "invalid sha256 output length from evidence binary",
@@ -61,9 +67,9 @@ class EvidenceCli:
             )
         return out
 
-    def artifact_id(self, input_path: str | Path, kind: str) -> str:
+    def artifact_id(self, input_path: str | Path, kind: str, *, cwd: str | Path | None = None) -> str:
         path = str(Path(input_path))
-        out = self._run(["artifact-id", path, "--kind", kind]).decode(
+        out = self._run(["artifact-id", path, "--kind", kind], cwd=cwd).decode(
             "utf-8", errors="replace"
         ).strip()
         if len(out) != 64:
@@ -73,9 +79,9 @@ class EvidenceCli:
             )
         return out
 
-    def hashchain(self, input_path: str | Path) -> dict[str, Any]:
+    def hashchain(self, input_path: str | Path, *, cwd: str | Path | None = None) -> dict[str, Any]:
         path = str(Path(input_path))
-        raw = self._run(["hashchain", path]).decode("utf-8", errors="replace").strip()
+        raw = self._run(["hashchain", path], cwd=cwd).decode("utf-8", errors="replace").strip()
         try:
             parsed = json.loads(raw)
         except json.JSONDecodeError as exc:

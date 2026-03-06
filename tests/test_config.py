@@ -20,6 +20,7 @@ def test_config_normalization_defaults() -> None:
         "capture_estimate",
         "hazard_map",
         "merge_decision",
+        "evidence_bundle",
     ]
     assert cfg["include_file_extensions"] == sorted(DEFAULT_CONFIG["include_file_extensions"])
     assert cfg["exclude_paths"] == sorted(DEFAULT_CONFIG["exclude_paths"])
@@ -33,6 +34,7 @@ def test_config_normalization_defaults() -> None:
     assert cfg["capture_selection_policy"] == "max_hidden"
     assert cfg["hazard_model_version"] == "hazard_rev1"
     assert cfg["merge_decision_model_version"] == "merge_rev1"
+    assert cfg["evidence_bundle_model_version"] == "evidence_bundle_rev1"
     assert [reviewer["reviewer_id"] for reviewer in cfg["reviewers"]] == sorted(
         reviewer["reviewer_id"] for reviewer in cfg["reviewers"]
     )
@@ -214,3 +216,26 @@ def test_merge_decision_thresholds_must_be_ordered() -> None:
                 "merge_decision_block_threshold": 0.6,
             }
         )
+
+
+def test_evidence_bundle_requires_merge_decision() -> None:
+    with pytest.raises(ConfigError):
+        normalize_config(
+            {
+                "enabled_stages": [
+                    "risk_heatmap",
+                    "context_slices",
+                    "review_findings",
+                    "telemetry_matrix",
+                    "occupancy_snapshot",
+                    "capture_estimate",
+                    "hazard_map",
+                    "evidence_bundle",
+                ]
+            }
+        )
+
+
+def test_evidence_bundle_model_version_must_be_supported() -> None:
+    with pytest.raises(ConfigError):
+        normalize_config({"evidence_bundle_model_version": "evidence_bundle_revX"})

@@ -39,8 +39,8 @@ Environment override:
 ## Current Runtime Posture
 
 - `forge-evidence` and `evidence_cli.py` are implemented, directly callable, and covered by Rust/Python tests.
-- Current A-L pipeline stages do not invoke the evidence wrapper during `forge-eval run` or `forge-eval validate`.
-- This is the active boundary by design in the current repo state:
-  - evidence primitives are available
-  - mainline artifact emission remains Python-owned
-  - downstream evidence-bundle assembly remains out of scope
+- Pack M is the first runtime stage that invokes the evidence wrapper during `forge-eval run`.
+- This is the active boundary in the current repo state:
+  - Packs A-L remain Python-owned stage logic
+  - Pack M invokes `forge-evidence` only for canonical JSON, artifact identity, and hashchain work
+  - signing, publishing, and release execution remain out of scope

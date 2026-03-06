@@ -18,6 +18,7 @@ KNOWN_STAGES = (
     "capture_estimate",
     "hazard_map",
     "merge_decision",
+    "evidence_bundle",
 )
 KNOWN_REVIEWER_KINDS = (
     "changed_lines",
@@ -33,6 +34,7 @@ KNOWN_CAPTURE_INCLUSION_POLICIES = ("include_all",)
 KNOWN_CAPTURE_SELECTION_POLICIES = ("max_hidden",)
 KNOWN_HAZARD_MODEL_VERSIONS = ("hazard_rev1",)
 KNOWN_MERGE_DECISION_MODEL_VERSIONS = ("merge_rev1",)
+KNOWN_EVIDENCE_BUNDLE_MODEL_VERSIONS = ("evidence_bundle_rev1",)
 KNOWN_SEVERITIES = ("low", "medium", "high", "critical")
 KNOWN_CATEGORIES = (
     "correctness",
@@ -54,6 +56,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "capture_estimate",
         "hazard_map",
         "merge_decision",
+        "evidence_bundle",
     ],
     "risk_weights": {
         "w_churn": 0.45,
@@ -105,6 +108,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "merge_decision_caution_threshold": 0.20,
     "merge_decision_block_threshold": 0.60,
     "merge_decision_block_on_hazard_blocking_signals": True,
+    "evidence_bundle_model_version": "evidence_bundle_rev1",
     "reviewers": [
         {
             "reviewer_id": "changed_lines.rule.v1",
@@ -609,6 +613,12 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
             raise ConfigError("merge_decision_block_on_hazard_blocking_signals must be a boolean")
         cfg["merge_decision_block_on_hazard_blocking_signals"] = value
 
+    if "evidence_bundle_model_version" in raw:
+        value = raw["evidence_bundle_model_version"]
+        if value not in KNOWN_EVIDENCE_BUNDLE_MODEL_VERSIONS:
+            raise ConfigError("evidence_bundle_model_version must be 'evidence_bundle_rev1'")
+        cfg["evidence_bundle_model_version"] = value
+
     if "reviewers" in raw:
         cfg["reviewers"] = _normalize_reviewers(raw["reviewers"])
 
@@ -629,6 +639,8 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
         raise ConfigError("hazard_map stage requires capture_estimate stage to be enabled")
     if "merge_decision" in enabled_stage_set and "hazard_map" not in enabled_stage_set:
         raise ConfigError("merge_decision stage requires hazard_map stage to be enabled")
+    if "evidence_bundle" in enabled_stage_set and "merge_decision" not in enabled_stage_set:
+        raise ConfigError("evidence_bundle stage requires merge_decision stage to be enabled")
 
     return cfg
 

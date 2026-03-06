@@ -25,6 +25,7 @@ Default stage order and enabled set:
 6. `capture_estimate`
 7. `hazard_map`
 8. `merge_decision`
+9. `evidence_bundle`
 
 Stage dependency constraints:
 
@@ -35,6 +36,7 @@ Stage dependency constraints:
 - `capture_estimate` requires `occupancy_snapshot`
 - `hazard_map` requires `capture_estimate`
 - `merge_decision` requires `hazard_map`
+- `evidence_bundle` requires `merge_decision`
 
 ## Pack F/G/H/I/J/K/L Config Keys (Current)
 
@@ -74,6 +76,7 @@ Stage dependency constraints:
 - `merge_decision_caution_threshold` (float in `[0,1]`)
 - `merge_decision_block_threshold` (float in `[0,1]`)
 - `merge_decision_block_on_hazard_blocking_signals` (bool)
+- `evidence_bundle_model_version` (`evidence_bundle_rev1`)
 
 ## Artifacts Written by `run`
 
@@ -86,6 +89,7 @@ Stage dependency constraints:
 - `capture_estimate.json` (if enabled)
 - `hazard_map.json` (if enabled)
 - `merge_decision.json` (if enabled)
+- `evidence_bundle.json` (if enabled)
 
 All Python-written artifacts use deterministic JSON encoding:
 

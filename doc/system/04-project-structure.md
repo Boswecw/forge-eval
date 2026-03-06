@@ -28,6 +28,7 @@ repo/
       capture_estimate.py
       hazard_map.py
       merge_decision.py
+      evidence_bundle.py
     services/
       git_diff.py
       risk_analysis.py
@@ -54,6 +55,9 @@ repo/
       merge_decision_model.py
       merge_decision_reasons.py
       merge_decision_summary.py
+      evidence_bundle_model.py
+      evidence_bundle_manifest.py
+      evidence_bundle_summary.py
     schemas/
       *.schema.json
     validation/
@@ -73,6 +77,7 @@ repo/
     test_capture_estimate_stage.py
     test_hazard_map_stage.py
     test_merge_decision_stage.py
+    test_evidence_bundle_stage.py
     test_finding_normalizer.py
     test_defect_identity.py
     test_schemas.py
@@ -97,7 +102,7 @@ repo/
 ## Responsibility Split
 
 - `stages/`: stage entrypoints that produce artifact objects.
-- `services/`: deterministic helpers (git access, scoring, range math, extraction, finding normalization, defect identity, reviewer health/applicability, telemetry matrix building, occupancy prior/posterior computation, hidden-defect counting/estimation, hazard scoring, advisory merge-decision reasoning).
+- `services/`: deterministic helpers (git access, scoring, range math, extraction, finding normalization, defect identity, reviewer health/applicability, telemetry matrix building, occupancy prior/posterior computation, hidden-defect counting/estimation, hazard scoring, advisory merge-decision reasoning, evidence-bundle manifest assembly).
 - `reviewers/`: deterministic reviewer adapters and execution wrappers.
 - `validation/`: schema lookup + JSON-schema enforcement.
 - `schemas/`: locked contracts for implemented and future artifacts.
