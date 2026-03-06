@@ -1,6 +1,6 @@
 # Forge Eval System Documentation
 
-> BDS Documentation Protocol v1.0 - modular reference for deterministic Packs A-F
+> BDS Documentation Protocol v1.0 - modular reference for deterministic Packs A-J
 
 | Part | File | Contents |
 |------|------|----------|
@@ -15,6 +15,10 @@
 | §9 | [09-schemas-validation-errors.md](09-schemas-validation-errors.md) | Strict schemas, validation, structured failures |
 | §10 | [10-testing-determinism.md](10-testing-determinism.md) | Test matrix and repeatability checks |
 | §11 | [11-handover-runbook.md](11-handover-runbook.md) | Build/run/validate runbook and constraints |
+| §12 | [12-reviewer-execution-stage.md](12-reviewer-execution-stage.md) | Pack G deterministic reviewer execution and findings |
+| §13 | [13-telemetry-matrix-stage.md](13-telemetry-matrix-stage.md) | Pack H deterministic telemetry matrix and conservative `k_eff` |
+| §14 | [14-occupancy-snapshot-stage.md](14-occupancy-snapshot-stage.md) | Pack I deterministic occupancy posterior (`psi_post`) |
+| §15 | [15-capture-estimate-stage.md](15-capture-estimate-stage.md) | Pack J deterministic hidden-defect estimation via Chao1 and ICE |
 
 ## Quick Assembly
 
@@ -22,7 +26,7 @@
 bash doc/system/BUILD.sh   # Assembles all parts into doc/feSYSTEM.md
 ```
 
-*Last updated: 2026-03-05*
+*Last updated: 2026-03-06*
 
 ---
 
@@ -30,7 +34,7 @@ bash doc/system/BUILD.sh   # Assembles all parts into doc/feSYSTEM.md
 
 ## Purpose
 
-`forge-eval` is a deterministic, fail-closed evaluation foundation implementing Packs A-F:
+`forge-eval` is a deterministic, fail-closed evaluation foundation implementing Packs A-J:
 
 - Pack A: Python scaffold, CLI, orchestration, error model.
 - Pack B: Rust evidence binary (`forge-evidence`) for canonical JSON/hash/hashchain primitives.
@@ -38,14 +42,18 @@ bash doc/system/BUILD.sh   # Assembles all parts into doc/feSYSTEM.md
 - Pack D: Strict JSON schema contracts for current and future artifacts.
 - Pack E: Structural risk heatmap generation from git-derived features.
 - Pack F: Context slice extraction from git diff hunks.
+- Pack G: Deterministic reviewer execution, normalized findings, stable defect identity.
+- Pack H: Deterministic telemetry matrix with reviewer-truth preservation and conservative `k_eff`.
+- Pack I: Deterministic occupancy posterior estimation (`psi_post`) with conservative null handling.
+- Pack J: Deterministic hidden-defect estimation (`capture_estimate`) with Chao1/ICE and conservative selection.
 
 ## Current Pipeline Boundary
 
 Implemented path:
 
-`config -> risk_heatmap -> context_slices`
+`config -> risk_heatmap -> context_slices -> review_findings -> telemetry_matrix -> occupancy_snapshot -> capture_estimate`
 
-Planned downstream (not implemented here): reviewers, telemetry, occupancy, hidden defect estimates, hazard, merge decision, bundle assembly.
+Planned downstream (not implemented here): hazard, merge decision, bundle assembly.
 
 ## Governing Principles
 
@@ -67,7 +75,11 @@ Planned downstream (not implemented here): reviewers, telemetry, occupancy, hidd
 3. Stage orchestration (`src/forge_eval/stage_runner.py`)
 4. Stage services (`src/forge_eval/stages/*`, `src/forge_eval/services/*`)
 5. Schema loading/validation (`src/forge_eval/validation/*`)
-6. Evidence subsystem (Rust binary under `rust/forge-evidence`, Python wrapper in `evidence_cli.py`)
+6. Reviewer subsystem (`src/forge_eval/reviewers/*` + finding normalization/identity services)
+7. Telemetry subsystem (`services/reviewer_health.py`, `services/applicability.py`, `services/telemetry_builder.py`, `services/k_eff.py`)
+8. Occupancy subsystem (`services/occupancy_priors.py`, `services/occupancy_model.py`, `services/occupancy_rows.py`, `services/occupancy_summary.py`)
+9. Hidden-defect subsystem (`services/capture_counts.py`, `services/chao1.py`, `services/ice.py`, `services/capture_selection.py`, `services/capture_summary.py`)
+10. Evidence subsystem (Rust binary under `rust/forge-evidence`, Python wrapper in `evidence_cli.py`)
 
 ## Runtime Flow (`forge-eval run`)
 
@@ -79,6 +91,10 @@ Planned downstream (not implemented here): reviewers, telemetry, occupancy, hidd
 6. Execute stages in fixed order:
    - `risk_heatmap`
    - `context_slices`
+   - `review_findings`
+   - `telemetry_matrix`
+   - `occupancy_snapshot`
+   - `capture_estimate`
 7. Validate each stage artifact against strict schema.
 8. Write schema-valid artifacts to output directory.
 
@@ -148,14 +164,40 @@ repo/
     stage_runner.py
     errors.py
     evidence_cli.py
+    reviewers/
+      base.py
+      registry.py
+      adapters.py
+      changed_lines.py
+      structural_risk.py
+      documentation_consistency.py
     stages/
       risk_heatmap.py
       context_slices.py
+      reviewer_execution.py
+      telemetry_matrix.py
+      occupancy_snapshot.py
+      capture_estimate.py
     services/
       git_diff.py
       risk_analysis.py
       range_ops.py
       slice_extractor.py
+      finding_normalizer.py
+      defect_identity.py
+      reviewer_health.py
+      applicability.py
+      telemetry_builder.py
+      k_eff.py
+      occupancy_priors.py
+      occupancy_model.py
+      occupancy_rows.py
+      occupancy_summary.py
+      capture_counts.py
+      chao1.py
+      ice.py
+      capture_selection.py
+      capture_summary.py
     schemas/
       *.schema.json
     validation/
@@ -169,10 +211,17 @@ repo/
     test_range_ops.py
     test_slice_extractor.py
     test_context_slices_stage.py
+    test_reviewer_execution_stage.py
+    test_telemetry_matrix_stage.py
+    test_occupancy_snapshot_stage.py
+    test_capture_estimate_stage.py
+    test_finding_normalizer.py
+    test_defect_identity.py
     test_schemas.py
     integration/
       test_risk_heatmap_repo.py
       test_context_slices_repo.py
+      test_review_findings_repo.py
       golden/
         context_single_hunk.json
         context_distant_hunks.json
@@ -190,7 +239,8 @@ repo/
 ## Responsibility Split
 
 - `stages/`: stage entrypoints that produce artifact objects.
-- `services/`: deterministic helpers (git access, scoring, range math, extraction).
+- `services/`: deterministic helpers (git access, scoring, range math, extraction, finding normalization, defect identity, reviewer health/applicability, telemetry matrix building, occupancy prior/posterior computation, hidden-defect counting/estimation).
+- `reviewers/`: deterministic reviewer adapters and execution wrappers.
 - `validation/`: schema lookup + JSON-schema enforcement.
 - `schemas/`: locked contracts for implemented and future artifacts.
 - `rust/forge-evidence/`: canonical evidence primitives.
@@ -218,8 +268,20 @@ Default stage order and enabled set:
 
 1. `risk_heatmap`
 2. `context_slices`
+3. `review_findings`
+4. `telemetry_matrix`
+5. `occupancy_snapshot`
+6. `capture_estimate`
 
-## Pack F Config Keys (Current)
+Stage dependency constraints:
+
+- `context_slices` requires `risk_heatmap`
+- `review_findings` requires `context_slices`
+- `telemetry_matrix` requires `review_findings`
+- `occupancy_snapshot` requires `telemetry_matrix`
+- `capture_estimate` requires `occupancy_snapshot`
+
+## Pack F/G/H/I/J Config Keys (Current)
 
 - `context_radius_lines` (int, >=0)
 - `merge_gap_lines` (int, >=0)
@@ -230,12 +292,31 @@ Default stage order and enabled set:
 - `include_file_extensions` (normalized unique list)
 - `exclude_paths` (normalized unique list, trailing `/`)
 - `binary_file_policy` (`fail` or `ignore`)
+- `reviewer_failure_policy` (`fail_stage` or `record_and_continue`)
+- `reviewers` (deterministically sorted reviewer config objects)
+- `telemetry_applicability_mode` (`reviewer_kind_scope_v1`)
+- `telemetry_k_eff_mode` (`global_min_per_defect`)
+- `occupancy_model_version` (`occupancy_rev1`)
+- `occupancy_prior_base` (float in `[0,1]`)
+- `occupancy_support_uplift` (float in `[0,1]`)
+- `occupancy_detection_assumption` (float in `[0,1]`)
+- `occupancy_miss_penalty_strength` (float in `[0,1]`)
+- `occupancy_null_uncertainty_boost` (float in `[0,1]`)
+- `occupancy_round_digits` (int in `[0,12]`)
+- `capture_inclusion_policy` (`include_all`)
+- `capture_selection_policy` (`max_hidden`)
+- `ice_rare_threshold` (int, >=1)
+- `capture_round_digits` (int in `[0,12]`)
 
 ## Artifacts Written by `run`
 
 - `config.resolved.json`
 - `risk_heatmap.json` (if enabled)
 - `context_slices.json` (if enabled)
+- `review_findings.json` (if enabled)
+- `telemetry_matrix.json` (if enabled)
+- `occupancy_snapshot.json` (if enabled)
+- `capture_estimate.json` (if enabled)
 
 All Python-written artifacts use deterministic JSON encoding:
 
@@ -374,7 +455,7 @@ For each changed target file (non-deleted, extension-allowed, non-excluded):
 
 # §9 - Schemas, Validation, and Error Model
 
-## Schema Set (Pack D)
+## Schema Set (Pack D + Pack G/H/I/J Extensions)
 
 Implemented schema files:
 
@@ -390,6 +471,38 @@ Implemented schema files:
 - `evidence_bundle.schema.json`
 
 All schemas are Draft 2020-12 and strict at root (`additionalProperties: false`).
+
+`review_findings.schema.json` enforces Pack G layout:
+
+- `artifact_version`, `kind`, `run`
+- reviewer execution summaries with status enum: `ok | failed | skipped`
+- normalized findings with strict severity/category enums
+- required deterministic `defect_key` format (`dfk_<sha256hex>`)
+- summary counters and provenance inputs/failure policy fields
+
+`telemetry_matrix.schema.json` enforces Pack H layout:
+
+- `artifact_version`, `kind`, `run`, `reviewers`, `defects`, `matrix`, `summary`, `provenance`
+- tri-state matrix cells limited to `1 | 0 | null`
+- reviewer status/health fields (`eligible`, `usable`, `failed`, `skipped`)
+- deterministic `k_eff` and per-defect `k_eff_defect`
+- locked provenance modes (`reviewer_kind_scope_v1`, `global_min_per_defect`)
+
+`occupancy_snapshot.schema.json` enforces Pack I layout:
+
+- `artifact_version`, `kind`, `run`, `rows`, `summary`, `model`, `provenance`
+- bounded posterior values (`psi_post` in `[0,1]`)
+- deterministic row counts (`observed_by`, `missed_by`, `null_by`, `k_eff_defect`)
+- explicit model metadata (`prior_policy`, `null_policy`, `suppression_policy`, locked parameters)
+- provenance locked to telemetry input and model version (`occupancy_rev1`)
+
+`capture_estimate.schema.json` enforces Pack J layout:
+
+- `artifact_version`, `kind`, `run`, `inputs`, `counts`, `estimators`, `summary`, `provenance`
+- deterministic incidence counts (`f1`, `f2`, histogram, ICE rare/frequent split)
+- structured Chao1 and ICE outputs with explicit guard flags
+- conservative selected hidden estimate (`max_hidden`)
+- provenance locked to telemetry + occupancy inputs
 
 ## Validation Behavior
 
@@ -419,7 +532,7 @@ CLI exits non-zero on any structured error.
 
 # §10 - Testing and Determinism
 
-## Python Test Coverage (Packs A-F)
+## Python Test Coverage (Packs A-J)
 
 - CLI smoke + failure behavior
 - config normalization and rejection cases
@@ -427,8 +540,19 @@ CLI exits non-zero on any structured error.
 - risk stage logic/unit + integration on temporary git repos
 - range operations and hunk parsing
 - context-slice extraction unit + integration + cap-overflow behavior
+- reviewer execution stage behavior (`ok`, `failed`, `skipped`)
+- finding normalization and fail-closed malformed finding handling
+- deterministic defect identity (`defect_key`) behavior
+- telemetry matrix stage behavior (`1`/`0`/`null`, reviewer health, conservative `k_eff`, cross-reviewer defect coalescing)
+- telemetry ghost-coverage guard behavior (`failed`/`skipped` reviewer => `null`)
+- fail-closed telemetry checks for same-reviewer duplicates and incompatible canonical metadata collisions
+- occupancy snapshot stage behavior (bounded `psi_post`, conservative null handling, stronger-coverage suppression)
+- occupancy fail-closed behavior for illegal telemetry cells, count mismatches, and invalid model config
+- capture estimate stage behavior (`f1`/`f2`, Chao1, ICE, conservative selection)
+- capture fail-closed behavior for inconsistent defect sets, invalid selection policy, and mismatched cross-artifact counts
 - golden-file checks for context slices
 - repeatability checks using byte-equality of serialized artifacts
+- integration proof that pipeline emits deterministic `review_findings.json`, `telemetry_matrix.json`, `occupancy_snapshot.json`, and `capture_estimate.json`
 
 ## Rust Test Coverage (Pack B)
 
@@ -445,6 +569,10 @@ CLI exits non-zero on any structured error.
 - stable JSON serialization
 - no runtime clock fields in primary stage artifacts
 - fail-closed cap handling instead of opportunistic truncation
+- explicit tri-state telemetry semantics (`1` observed, `0` eligible miss, `null` unavailable/inapplicable)
+- reviewer-independent canonical defect identity with deterministic cross-reviewer coalescing
+- explicit occupancy semantics (`null` contributes uncertainty, usable misses drive suppression)
+- explicit hidden-defect semantics (singletons elevate caution, sparse guards stay visible)
 
 ---
 
@@ -491,13 +619,281 @@ forge-eval validate --artifacts /abs/path/to/artifacts
 
 1. Run the same `forge-eval run` command twice on identical inputs.
 2. Compare produced artifacts byte-for-byte.
-3. Run Python and Rust tests before merge.
+3. Confirm reviewer execution statuses are explicit (`ok`/`failed`/`skipped`) in `review_findings.json`.
+4. Confirm telemetry cells are explicit (`1`/`0`/`null`) in `telemetry_matrix.json`.
+5. Confirm shared canonical defects can produce `reported_by` length > 1 and `support_count` > 1 in `telemetry_matrix.json`.
+6. Confirm same-reviewer duplicates and metadata collisions fail closed in tests.
+7. Confirm occupancy rows are bounded (`psi_post` in `[0,1]`) in `occupancy_snapshot.json`.
+8. Confirm capture outputs include Chao1, ICE, and selected hidden estimate in `capture_estimate.json`.
+9. Run Python and Rust tests before merge.
 
 ## Guardrails for Next Packs
 
 1. Keep schema-first contracts; add new artifact kinds in `schemas/` before stage logic.
 2. Preserve fail-closed defaults unless governance text explicitly allows deterministic reduction.
 3. Keep evidence primitives centralized in Rust; do not duplicate them in Python.
-4. Do not add reviewer/telemetry/occupancy logic into Pack F modules.
+4. Keep Pack G reviewer logic deterministic and isolated from Pack H+ telemetry/occupancy/hazard logic.
+5. Preserve ghost-coverage guard: failed/skipped/inapplicable reviewer states must never be coerced to clean misses.
+6. Preserve occupancy conservatism: weak/null-heavy coverage must not be treated as strong suppression.
+7. Preserve capture conservatism: singleton-heavy sparse evidence must not collapse to low hidden-defect estimates.
+
+---
+
+# §12 - Pack G: Reviewer Execution Stage
+
+## Stage Contract
+
+Input:
+
+- `context_slices` artifact (required)
+- `risk_heatmap` artifact (optional but used by `structural_risk` reviewer)
+- normalized reviewer config
+
+Output:
+
+- `review_findings.json` (schema kind: `review_findings`)
+- Downstream consumer: Pack H `telemetry_matrix` stage
+
+## Execution Model
+
+1. Load configured reviewers and sort by `reviewer_id`.
+2. Apply deterministic scope filtering per reviewer.
+3. Execute reviewer adapter with isolated input state.
+4. Capture reviewer execution truth with explicit status:
+   - `ok`
+   - `failed`
+   - `skipped`
+5. Normalize raw findings into a strict contract.
+6. Generate stable `defect_key` from canonical identity fields.
+7. Sort findings deterministically and emit schema-valid artifact.
+
+## Defect Identity
+
+- `defect_key` is reviewer-independent canonical identity.
+- Matching findings from different reviewers keep the same `defect_key`.
+- Repeated `defect_key` values from the same reviewer still fail closed upstream.
+- Pack H owns cross-reviewer coalescing and compatibility enforcement.
+
+## Built-in Deterministic Reviewers
+
+- `changed_lines`: deterministic rule checks over changed slices.
+- `documentation_consistency`: code/docs pairing checks from slice set.
+- `structural_risk`: threshold-based findings from Pack E risk scores.
+
+## Fail-Closed Behavior
+
+- Invalid reviewer config/kind -> stage failure.
+- Malformed reviewer output/finding fields -> stage failure.
+- Reviewer execution error:
+  - `reviewer_failure_policy=fail_stage` -> fail stage.
+  - `reviewer_failure_policy=record_and_continue` -> record reviewer `failed`.
+- Artifact schema validation failure -> run failure.
+
+## Determinism Notes
+
+- Reviewer specs sorted by `reviewer_id`.
+- Slices sorted by file/range before dispatch.
+- Findings sorted by reviewer/file/slice/category/title/line anchor/`defect_key`.
+- `defect_key` is deterministic hash (`dfk_<sha256hex>`) over reviewer-independent normalized identity fields.
+
+---
+
+# §13 - Pack H: Telemetry Matrix Stage
+
+## Stage Contract
+
+Input:
+
+- `review_findings` artifact (required)
+- normalized reviewer config (required)
+
+Output:
+
+- `telemetry_matrix.json` (schema kind: `telemetry_matrix`)
+- Downstream consumer: Pack I `occupancy_snapshot` stage
+
+## Execution Model
+
+1. Validate `review_findings` shape and enforce `run_id` consistency.
+2. Build canonical reviewer-health entries from reviewer execution truth.
+3. Build canonical defect catalog from normalized findings, coalescing shared `defect_key` values across reviewers.
+4. Compute reviewer-defect applicability deterministically.
+5. Build tri-state observation matrix with strict cell values:
+   - `1` = reviewer observed defect
+   - `0` = reviewer was usable/applicable but did not report defect
+   - `null` = reviewer failed, skipped, or was inapplicable
+6. Compute per-defect `k_eff_defect` and conservative global `k_eff`.
+7. Emit schema-valid `telemetry_matrix.json` with deterministic ordering.
+
+## Reviewer Truth Preservation
+
+- `status=failed` and `status=skipped` are never converted to clean misses.
+- `usable` is derived conservatively (`status=ok` and `slices_seen > 0`).
+- `eligible` and `usable` are explicit fields in each reviewer entry.
+
+## Defect Coalescing Rule
+
+- one `defect_key` represents one canonical defect identity.
+- different reviewers may report that same canonical defect.
+- telemetry merges distinct reviewers into `reported_by` and sets `support_count` to unique reviewer count.
+- same-reviewer duplicate `defect_key` values still fail closed.
+- incompatible repeated `defect_key` metadata (`file_path`, `category`, `severity`) still fails closed.
+
+## Applicability Rule (v1)
+
+`telemetry_applicability_mode=reviewer_kind_scope_v1`:
+
+- extension/path scope checks from reviewer config are applied first
+- `documentation_consistency` is limited to Markdown defects
+- `structural_risk` excludes Markdown defects
+- `changed_lines` applies broadly after scope checks
+
+## `k_eff` Rule (v1)
+
+`telemetry_k_eff_mode=global_min_per_defect`:
+
+- per defect: `k_eff_defect = count(observation != null)`
+- global: `k_eff = min(k_eff_defect over all matrix rows)`
+
+This keeps Pack H conservative for downstream occupancy stages.
+
+## Fail-Closed Behavior
+
+- Invalid reviewer status or malformed reviewer entry -> stage failure.
+- Duplicate reviewer IDs -> stage failure.
+- Same-reviewer duplicate `defect_key` or incompatible repeated `defect_key` metadata -> stage failure.
+- Findings that reference unknown reviewers -> stage failure.
+- Unsupported applicability or `k_eff` modes -> stage failure.
+- Illegal cell values (anything outside `1/0/null`) -> stage failure.
+- Schema validation failure -> run failure.
+
+## Determinism Notes
+
+- Reviewer rows sorted by `reviewer_id`.
+- Defects and matrix rows sorted by `defect_key`.
+- Observation maps emitted in stable reviewer order.
+- No clock-based fields in primary payload.
+
+---
+
+# §14 - Pack I: Occupancy Snapshot Stage
+
+## Stage Contract
+
+Input:
+
+- `telemetry_matrix` artifact (required)
+- normalized occupancy model config (required)
+
+Output:
+
+- `occupancy_snapshot.json` (schema kind: `occupancy_snapshot`)
+- Downstream consumer: Pack J `capture_estimate` stage
+
+## Execution Model
+
+1. Validate telemetry artifact shape and enforce `run_id` consistency.
+2. Build canonical per-defect occupancy rows from telemetry defects + matrix.
+3. Derive deterministic priors from support/severity using config-locked policy.
+4. Compute deterministic posterior occupancy (`psi_post`) with:
+   - positive retention from observed detections,
+   - suppression only from usable misses,
+   - uncertainty guard from `null` coverage.
+5. Emit bounded, schema-valid rows sorted by `defect_key`.
+6. Emit deterministic summary + model metadata for auditability.
+
+## Core Semantics
+
+- `null` is uncertainty, not a clean miss.
+- suppression requires usable miss evidence (`0` cells).
+- sparse usable coverage does not over-suppress occupancy.
+- `psi_post` is always bounded in `[0,1]`.
+
+## Model Rule (v1)
+
+`occupancy_model_version=occupancy_rev1` with deterministic conservative rule:
+
+- prior = `occupancy_prior_base + occupancy_support_uplift(if support_count>0) + severity_uplift`
+- observed retention from `occupancy_detection_assumption`
+- miss penalty from usable miss ratio and coverage ratio
+- uncertainty guard from null ratio and low coverage
+- bounded posterior: `clamp(..., 0.02, 0.995)`
+
+All parameters are config-locked and emitted in `model.parameters`.
+
+## Fail-Closed Behavior
+
+- telemetry artifact kind mismatch -> stage failure.
+- run mismatch or missing telemetry fields -> stage failure.
+- duplicate or inconsistent defect/matrix keys -> stage failure.
+- illegal matrix cell values (outside `1/0/null`) -> stage failure.
+- impossible row counts or `k_eff_defect` mismatch -> stage failure.
+- unsupported model version or out-of-range model params -> stage failure.
+- schema validation failure -> run failure.
+
+## Determinism Notes
+
+- rows sorted by `defect_key`.
+- fixed rounding policy via `occupancy_round_digits`.
+- no clock-based fields in primary payload.
+- model metadata is explicit and version-locked.
+
+---
+
+# §15 - Pack J: Capture Estimate Stage
+
+## Stage Contract
+
+Input:
+
+- `telemetry_matrix` artifact (required)
+- `occupancy_snapshot` artifact (required)
+- normalized capture-estimate config (required)
+
+Output:
+
+- `capture_estimate.json` (schema kind: `capture_estimate`)
+
+## Execution Model
+
+1. Validate telemetry and occupancy artifacts and enforce `run_id` / commit alignment.
+2. Cross-check defect sets and per-row observation counts across Pack H and Pack I.
+3. Build deterministic incidence counts and frequency-of-frequencies histogram.
+4. Compute bias-corrected Chao1 hidden estimate.
+5. Compute ICE hidden estimate with explicit low-information fallback.
+6. Select conservative hidden burden with `max_hidden`.
+7. Emit schema-valid counts, estimator details, summary flags, and provenance.
+
+## Core Semantics
+
+- only positive usable observations contribute to incidence counts.
+- `null` is not converted into sampling effort.
+- singleton-heavy rows increase hidden-defect concern.
+- sparse-data guardrails stay visible in the artifact.
+
+## Model Rules (v1)
+
+- inclusion policy: `include_all`
+- Chao1 variant: `bias_corrected`
+- ICE rare threshold: config-locked `ice_rare_threshold` (default `10`)
+- selection policy: `max_hidden`
+
+When ICE coverage collapses or rare-incidence support is too weak, Pack J uses an explicit fallback path instead of dividing by zero or silently returning zero hidden defects.
+
+## Fail-Closed Behavior
+
+- telemetry/occupancy defect-set mismatch -> stage failure.
+- cross-artifact count mismatch (`observed_by`, `missed_by`, `null_by`, `k_eff_defect`) -> stage failure.
+- included row with zero positive incidence -> stage failure.
+- unsupported inclusion or selection policy -> stage failure.
+- invalid histogram keys/counts or negative estimator outputs -> stage failure.
+- schema validation failure -> run failure.
+
+## Determinism Notes
+
+- defect rows are counted in canonical `defect_key` order.
+- histogram keys are emitted as sorted decimal strings.
+- estimator rounding is fixed by `capture_round_digits`.
+- selected hidden estimate is explicit and conservative.
 
 ---

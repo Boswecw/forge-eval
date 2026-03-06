@@ -7,7 +7,11 @@
 3. Stage orchestration (`src/forge_eval/stage_runner.py`)
 4. Stage services (`src/forge_eval/stages/*`, `src/forge_eval/services/*`)
 5. Schema loading/validation (`src/forge_eval/validation/*`)
-6. Evidence subsystem (Rust binary under `rust/forge-evidence`, Python wrapper in `evidence_cli.py`)
+6. Reviewer subsystem (`src/forge_eval/reviewers/*` + finding normalization/identity services)
+7. Telemetry subsystem (`services/reviewer_health.py`, `services/applicability.py`, `services/telemetry_builder.py`, `services/k_eff.py`)
+8. Occupancy subsystem (`services/occupancy_priors.py`, `services/occupancy_model.py`, `services/occupancy_rows.py`, `services/occupancy_summary.py`)
+9. Hidden-defect subsystem (`services/capture_counts.py`, `services/chao1.py`, `services/ice.py`, `services/capture_selection.py`, `services/capture_summary.py`)
+10. Evidence subsystem (Rust binary under `rust/forge-evidence`, Python wrapper in `evidence_cli.py`)
 
 ## Runtime Flow (`forge-eval run`)
 
@@ -19,6 +23,10 @@
 6. Execute stages in fixed order:
    - `risk_heatmap`
    - `context_slices`
+   - `review_findings`
+   - `telemetry_matrix`
+   - `occupancy_snapshot`
+   - `capture_estimate`
 7. Validate each stage artifact against strict schema.
 8. Write schema-valid artifacts to output directory.
 

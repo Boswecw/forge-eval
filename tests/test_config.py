@@ -11,10 +11,27 @@ from forge_eval.errors import ConfigError
 
 def test_config_normalization_defaults() -> None:
     cfg = normalize_config({})
-    assert cfg["enabled_stages"] == ["risk_heatmap", "context_slices"]
+    assert cfg["enabled_stages"] == [
+        "risk_heatmap",
+        "context_slices",
+        "review_findings",
+        "telemetry_matrix",
+        "occupancy_snapshot",
+        "capture_estimate",
+    ]
     assert cfg["include_file_extensions"] == sorted(DEFAULT_CONFIG["include_file_extensions"])
     assert cfg["exclude_paths"] == sorted(DEFAULT_CONFIG["exclude_paths"])
     assert abs(sum(cfg["risk_weights"].values()) - 1.0) < 1e-9
+    assert cfg["reviewer_failure_policy"] == "fail_stage"
+    assert cfg["telemetry_applicability_mode"] == "reviewer_kind_scope_v1"
+    assert cfg["telemetry_k_eff_mode"] == "global_min_per_defect"
+    assert cfg["occupancy_model_version"] == "occupancy_rev1"
+    assert cfg["occupancy_detection_assumption"] == 0.70
+    assert cfg["capture_inclusion_policy"] == "include_all"
+    assert cfg["capture_selection_policy"] == "max_hidden"
+    assert [reviewer["reviewer_id"] for reviewer in cfg["reviewers"]] == sorted(
+        reviewer["reviewer_id"] for reviewer in cfg["reviewers"]
+    )
 
 
 def test_config_unknown_key_fails() -> None:
@@ -47,3 +64,96 @@ def test_load_config_yaml(tmp_path: Path) -> None:
     cfg = load_config(path)
     assert cfg["enabled_stages"] == ["risk_heatmap"]
     assert cfg["include_file_extensions"] == [".py", ".ts"]
+
+
+def test_duplicate_reviewer_id_fails() -> None:
+    with pytest.raises(ConfigError):
+        normalize_config(
+            {
+                "reviewers": [
+                    {
+                        "reviewer_id": "dup",
+                        "kind": "changed_lines",
+                        "enabled": True,
+                        "failure_mode": "fail_stage",
+                        "scope_rules": {},
+                        "finding_rules": {},
+                    },
+                    {
+                        "reviewer_id": "dup",
+                        "kind": "structural_risk",
+                        "enabled": True,
+                        "failure_mode": "fail_stage",
+                        "scope_rules": {},
+                        "finding_rules": {},
+                    },
+                ]
+            }
+        )
+
+
+def test_unsupported_reviewer_kind_fails() -> None:
+    with pytest.raises(ConfigError):
+        normalize_config(
+            {
+                "reviewers": [
+                    {
+                        "reviewer_id": "bad.kind",
+                        "kind": "llm_magic",
+                        "enabled": True,
+                        "failure_mode": "fail_stage",
+                        "scope_rules": {},
+                        "finding_rules": {},
+                    }
+                ]
+            }
+        )
+
+
+def test_review_findings_requires_context_slices() -> None:
+    with pytest.raises(ConfigError):
+        normalize_config({"enabled_stages": ["risk_heatmap", "review_findings"]})
+
+
+def test_telemetry_matrix_requires_review_findings() -> None:
+    with pytest.raises(ConfigError):
+        normalize_config({"enabled_stages": ["risk_heatmap", "context_slices", "telemetry_matrix"]})
+
+
+def test_occupancy_snapshot_requires_telemetry_matrix() -> None:
+    with pytest.raises(ConfigError):
+        normalize_config(
+            {
+                "enabled_stages": [
+                    "risk_heatmap",
+                    "context_slices",
+                    "review_findings",
+                    "occupancy_snapshot",
+                ]
+            }
+        )
+
+
+def test_occupancy_model_version_must_be_supported() -> None:
+    with pytest.raises(ConfigError):
+        normalize_config({"occupancy_model_version": "occupancy_revX"})
+
+
+def test_capture_estimate_requires_occupancy_snapshot() -> None:
+    with pytest.raises(ConfigError):
+        normalize_config(
+            {
+                "enabled_stages": [
+                    "risk_heatmap",
+                    "context_slices",
+                    "review_findings",
+                    "telemetry_matrix",
+                    "capture_estimate",
+                ]
+            }
+        )
+
+
+def test_capture_selection_policy_must_be_supported() -> None:
+    with pytest.raises(ConfigError):
+        normalize_config({"capture_selection_policy": "smallest_hidden"})

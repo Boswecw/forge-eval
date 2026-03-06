@@ -2,40 +2,178 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "kind", "run_id", "per_target", "provenance"],
+  "required": [
+    "artifact_version",
+    "kind",
+    "run",
+    "rows",
+    "summary",
+    "model",
+    "provenance"
+  ],
   "properties": {
-    "schema_version": {"type": "string", "const": "v1"},
+    "artifact_version": {"type": "integer", "const": 1},
     "kind": {"type": "string", "const": "occupancy_snapshot"},
-    "run_id": {"type": "string", "minLength": 1},
-    "per_target": {
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "repo_path",
+        "base_ref",
+        "head_ref",
+        "base_commit",
+        "head_commit",
+        "telemetry_artifact"
+      ],
+      "properties": {
+        "run_id": {"type": "string", "minLength": 1},
+        "repo_path": {"type": "string", "minLength": 1},
+        "base_ref": {"type": "string", "minLength": 1},
+        "head_ref": {"type": "string", "minLength": 1},
+        "base_commit": {"type": "string", "minLength": 1},
+        "head_commit": {"type": "string", "minLength": 1},
+        "telemetry_artifact": {"type": "string", "const": "telemetry_matrix.json"}
+      }
+    },
+    "rows": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": [
-          "target_id",
-          "risk_bucket",
-          "psi_prior",
+          "defect_key",
           "psi_post",
-          "detected_any",
-          "methods_included"
+          "observed_by",
+          "missed_by",
+          "null_by",
+          "k_eff_defect",
+          "support_count",
+          "evidence_strength",
+          "inputs"
         ],
         "properties": {
-          "target_id": {"type": "string", "minLength": 1},
-          "risk_bucket": {"type": "string", "enum": ["low", "medium", "high"]},
-          "psi_prior": {"type": "number", "minimum": 0, "maximum": 1},
-          "psi_post": {"type": "number", "minimum": 0, "maximum": 1},
-          "detected_any": {"type": "boolean"},
-          "methods_included": {"type": "array", "items": {"type": "string", "minLength": 1}}
+          "defect_key": {"type": "string", "pattern": "^dfk_[a-f0-9]{64}$"},
+          "psi_post": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "observed_by": {"type": "integer", "minimum": 0},
+          "missed_by": {"type": "integer", "minimum": 0},
+          "null_by": {"type": "integer", "minimum": 0},
+          "k_eff_defect": {"type": "integer", "minimum": 0},
+          "support_count": {"type": "integer", "minimum": 0},
+          "evidence_strength": {"type": "string", "enum": ["weak", "moderate", "strong"]},
+          "file_path": {"type": "string", "minLength": 1},
+          "category": {
+            "type": "string",
+            "enum": ["correctness", "consistency", "schema", "docs", "policy", "risk", "unknown"]
+          },
+          "severity": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+          "inputs": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "prior",
+              "detection_assumption",
+              "coverage_ratio",
+              "miss_penalty",
+              "uncertainty_guard"
+            ],
+            "properties": {
+              "prior": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+              "detection_assumption": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+              "coverage_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+              "miss_penalty": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+              "uncertainty_guard": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+            }
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "defect_rows",
+        "rows_with_positive_observation",
+        "rows_with_nulls",
+        "mean_psi_post",
+        "max_psi_post",
+        "min_psi_post",
+        "global_k_eff"
+      ],
+      "properties": {
+        "defect_rows": {"type": "integer", "minimum": 0},
+        "rows_with_positive_observation": {"type": "integer", "minimum": 0},
+        "rows_with_nulls": {"type": "integer", "minimum": 0},
+        "mean_psi_post": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "max_psi_post": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "min_psi_post": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "global_k_eff": {"type": "integer", "minimum": 0}
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "mode",
+        "prior_policy",
+        "null_policy",
+        "suppression_policy",
+        "parameters"
+      ],
+      "properties": {
+        "name": {"type": "string", "const": "occupancy_rev1"},
+        "mode": {"type": "string", "const": "deterministic_conservative"},
+        "prior_policy": {"type": "string", "const": "config_locked_v1"},
+        "null_policy": {"type": "string", "const": "null_is_uncertainty"},
+        "suppression_policy": {"type": "string", "const": "usable_misses_only"},
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "occupancy_prior_base",
+            "occupancy_support_uplift",
+            "occupancy_detection_assumption",
+            "occupancy_miss_penalty_strength",
+            "occupancy_null_uncertainty_boost",
+            "occupancy_round_digits",
+            "severity_uplift"
+          ],
+          "properties": {
+            "occupancy_prior_base": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+            "occupancy_support_uplift": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+            "occupancy_detection_assumption": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+            "occupancy_miss_penalty_strength": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+            "occupancy_null_uncertainty_boost": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+            "occupancy_round_digits": {"type": "integer", "minimum": 0, "maximum": 12},
+            "severity_uplift": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["low", "medium", "high", "critical"],
+              "properties": {
+                "low": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "medium": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "high": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "critical": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+              }
+            }
+          }
         }
       }
     },
     "provenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["algorithm"],
+      "required": ["algorithm", "deterministic", "inputs", "model_version"],
       "properties": {
-        "algorithm": {"type": "string", "minLength": 1}
+        "algorithm": {"type": "string", "const": "occupancy_snapshot_v1"},
+        "deterministic": {"type": "boolean"},
+        "inputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "enum": ["telemetry_matrix.json"]}
+        },
+        "model_version": {"type": "string", "const": "occupancy_rev1"}
       }
     }
   }

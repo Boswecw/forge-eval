@@ -1,6 +1,6 @@
 # §9 - Schemas, Validation, and Error Model
 
-## Schema Set (Pack D)
+## Schema Set (Pack D + Pack G/H/I/J Extensions)
 
 Implemented schema files:
 
@@ -16,6 +16,38 @@ Implemented schema files:
 - `evidence_bundle.schema.json`
 
 All schemas are Draft 2020-12 and strict at root (`additionalProperties: false`).
+
+`review_findings.schema.json` enforces Pack G layout:
+
+- `artifact_version`, `kind`, `run`
+- reviewer execution summaries with status enum: `ok | failed | skipped`
+- normalized findings with strict severity/category enums
+- required deterministic `defect_key` format (`dfk_<sha256hex>`)
+- summary counters and provenance inputs/failure policy fields
+
+`telemetry_matrix.schema.json` enforces Pack H layout:
+
+- `artifact_version`, `kind`, `run`, `reviewers`, `defects`, `matrix`, `summary`, `provenance`
+- tri-state matrix cells limited to `1 | 0 | null`
+- reviewer status/health fields (`eligible`, `usable`, `failed`, `skipped`)
+- deterministic `k_eff` and per-defect `k_eff_defect`
+- locked provenance modes (`reviewer_kind_scope_v1`, `global_min_per_defect`)
+
+`occupancy_snapshot.schema.json` enforces Pack I layout:
+
+- `artifact_version`, `kind`, `run`, `rows`, `summary`, `model`, `provenance`
+- bounded posterior values (`psi_post` in `[0,1]`)
+- deterministic row counts (`observed_by`, `missed_by`, `null_by`, `k_eff_defect`)
+- explicit model metadata (`prior_policy`, `null_policy`, `suppression_policy`, locked parameters)
+- provenance locked to telemetry input and model version (`occupancy_rev1`)
+
+`capture_estimate.schema.json` enforces Pack J layout:
+
+- `artifact_version`, `kind`, `run`, `inputs`, `counts`, `estimators`, `summary`, `provenance`
+- deterministic incidence counts (`f1`, `f2`, histogram, ICE rare/frequent split)
+- structured Chao1 and ICE outputs with explicit guard flags
+- conservative selected hidden estimate (`max_hidden`)
+- provenance locked to telemetry + occupancy inputs
 
 ## Validation Behavior
 

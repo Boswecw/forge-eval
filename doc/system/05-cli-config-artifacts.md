@@ -19,8 +19,20 @@ Default stage order and enabled set:
 
 1. `risk_heatmap`
 2. `context_slices`
+3. `review_findings`
+4. `telemetry_matrix`
+5. `occupancy_snapshot`
+6. `capture_estimate`
 
-## Pack F Config Keys (Current)
+Stage dependency constraints:
+
+- `context_slices` requires `risk_heatmap`
+- `review_findings` requires `context_slices`
+- `telemetry_matrix` requires `review_findings`
+- `occupancy_snapshot` requires `telemetry_matrix`
+- `capture_estimate` requires `occupancy_snapshot`
+
+## Pack F/G/H/I/J Config Keys (Current)
 
 - `context_radius_lines` (int, >=0)
 - `merge_gap_lines` (int, >=0)
@@ -31,12 +43,31 @@ Default stage order and enabled set:
 - `include_file_extensions` (normalized unique list)
 - `exclude_paths` (normalized unique list, trailing `/`)
 - `binary_file_policy` (`fail` or `ignore`)
+- `reviewer_failure_policy` (`fail_stage` or `record_and_continue`)
+- `reviewers` (deterministically sorted reviewer config objects)
+- `telemetry_applicability_mode` (`reviewer_kind_scope_v1`)
+- `telemetry_k_eff_mode` (`global_min_per_defect`)
+- `occupancy_model_version` (`occupancy_rev1`)
+- `occupancy_prior_base` (float in `[0,1]`)
+- `occupancy_support_uplift` (float in `[0,1]`)
+- `occupancy_detection_assumption` (float in `[0,1]`)
+- `occupancy_miss_penalty_strength` (float in `[0,1]`)
+- `occupancy_null_uncertainty_boost` (float in `[0,1]`)
+- `occupancy_round_digits` (int in `[0,12]`)
+- `capture_inclusion_policy` (`include_all`)
+- `capture_selection_policy` (`max_hidden`)
+- `ice_rare_threshold` (int, >=1)
+- `capture_round_digits` (int in `[0,12]`)
 
 ## Artifacts Written by `run`
 
 - `config.resolved.json`
 - `risk_heatmap.json` (if enabled)
 - `context_slices.json` (if enabled)
+- `review_findings.json` (if enabled)
+- `telemetry_matrix.json` (if enabled)
+- `occupancy_snapshot.json` (if enabled)
+- `capture_estimate.json` (if enabled)
 
 All Python-written artifacts use deterministic JSON encoding:
 

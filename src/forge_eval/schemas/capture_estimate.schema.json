@@ -3,37 +3,226 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema_version",
+    "artifact_version",
     "kind",
-    "run_id",
-    "estimate",
-    "method_count",
-    "target_count",
-    "confidence_interval",
+    "run",
+    "inputs",
+    "counts",
+    "estimators",
+    "summary",
     "provenance"
   ],
   "properties": {
-    "schema_version": {"type": "string", "const": "v1"},
+    "artifact_version": {"type": "integer", "const": 1},
     "kind": {"type": "string", "const": "capture_estimate"},
-    "run_id": {"type": "string", "minLength": 1},
-    "estimate": {"type": "number", "minimum": 0},
-    "method_count": {"type": "integer", "minimum": 1},
-    "target_count": {"type": "integer", "minimum": 1},
-    "confidence_interval": {
+    "run": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["lower", "upper"],
+      "required": [
+        "run_id",
+        "repo_path",
+        "base_ref",
+        "head_ref",
+        "base_commit",
+        "head_commit",
+        "telemetry_artifact",
+        "occupancy_artifact"
+      ],
       "properties": {
-        "lower": {"type": "number", "minimum": 0},
-        "upper": {"type": "number", "minimum": 0}
+        "run_id": {"type": "string", "minLength": 1},
+        "repo_path": {"type": "string", "minLength": 1},
+        "base_ref": {"type": "string", "minLength": 1},
+        "head_ref": {"type": "string", "minLength": 1},
+        "base_commit": {"type": "string", "minLength": 1},
+        "head_commit": {"type": "string", "minLength": 1},
+        "telemetry_artifact": {"type": "string", "const": "telemetry_matrix.json"},
+        "occupancy_artifact": {"type": "string", "const": "occupancy_snapshot.json"}
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "occupancy_inclusion_policy",
+        "chao1_variant",
+        "ice_rare_threshold",
+        "selection_policy",
+        "sparse_guard_policy",
+        "round_digits"
+      ],
+      "properties": {
+        "mode": {"type": "string", "const": "deterministic_conservative"},
+        "occupancy_inclusion_policy": {"type": "string", "const": "include_all"},
+        "chao1_variant": {"type": "string", "const": "bias_corrected"},
+        "ice_rare_threshold": {"type": "integer", "minimum": 1},
+        "selection_policy": {"type": "string", "const": "max_hidden"},
+        "sparse_guard_policy": {"type": "string", "const": "enabled"},
+        "round_digits": {"type": "integer", "minimum": 0, "maximum": 12}
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "defect_rows",
+        "included_rows",
+        "excluded_rows",
+        "k_eff_global",
+        "f1",
+        "f2",
+        "incidence_histogram",
+        "ice"
+      ],
+      "properties": {
+        "defect_rows": {"type": "integer", "minimum": 0},
+        "included_rows": {"type": "integer", "minimum": 0},
+        "excluded_rows": {"type": "integer", "minimum": 0},
+        "k_eff_global": {"type": "integer", "minimum": 0},
+        "f1": {"type": "integer", "minimum": 0},
+        "f2": {"type": "integer", "minimum": 0},
+        "incidence_histogram": {
+          "type": "object",
+          "propertyNames": {"pattern": "^[0-9]+$"},
+          "additionalProperties": {"type": "integer", "minimum": 0}
+        },
+        "ice": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "rare_threshold",
+            "rare_count",
+            "frequent_count",
+            "q1",
+            "q2",
+            "sample_coverage"
+          ],
+          "properties": {
+            "rare_threshold": {"type": "integer", "minimum": 1},
+            "rare_count": {"type": "integer", "minimum": 0},
+            "frequent_count": {"type": "integer", "minimum": 0},
+            "q1": {"type": "integer", "minimum": 0},
+            "q2": {"type": "integer", "minimum": 0},
+            "sample_coverage": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+          }
+        }
+      }
+    },
+    "estimators": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chao1",
+        "ice",
+        "selected_method",
+        "selected_source",
+        "selected_hidden",
+        "selected_total"
+      ],
+      "properties": {
+        "chao1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["observed", "hidden", "total", "formula_variant", "guard_applied", "inputs"],
+          "properties": {
+            "observed": {"type": "integer", "minimum": 0},
+            "hidden": {"type": "number", "minimum": 0.0},
+            "total": {"type": "number", "minimum": 0.0},
+            "formula_variant": {"type": "string", "const": "bias_corrected"},
+            "guard_applied": {"type": "boolean"},
+            "inputs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["f1", "f2"],
+              "properties": {
+                "f1": {"type": "integer", "minimum": 0},
+                "f2": {"type": "integer", "minimum": 0}
+              }
+            }
+          }
+        },
+        "ice": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "observed",
+            "hidden",
+            "total",
+            "rare_threshold",
+            "sample_coverage",
+            "formula_variant",
+            "guard_applied",
+            "inputs"
+          ],
+          "properties": {
+            "observed": {"type": "integer", "minimum": 0},
+            "hidden": {"type": "number", "minimum": 0.0},
+            "total": {"type": "number", "minimum": 0.0},
+            "rare_threshold": {"type": "integer", "minimum": 1},
+            "sample_coverage": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+            "formula_variant": {
+              "type": "string",
+              "enum": ["ice", "fallback_chao1_bias_corrected", "no_rare_rows"]
+            },
+            "guard_applied": {"type": "boolean"},
+            "inputs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["rare_count", "frequent_count", "q1", "q2", "gamma_sq"],
+              "properties": {
+                "rare_count": {"type": "integer", "minimum": 0},
+                "frequent_count": {"type": "integer", "minimum": 0},
+                "q1": {"type": "integer", "minimum": 0},
+                "q2": {"type": "integer", "minimum": 0},
+                "gamma_sq": {"type": "number", "minimum": 0.0}
+              }
+            }
+          }
+        },
+        "selected_method": {"type": "string", "const": "max_hidden"},
+        "selected_source": {"type": "string", "enum": ["chao1", "ice", "tie"]},
+        "selected_hidden": {"type": "number", "minimum": 0.0},
+        "selected_total": {"type": "number", "minimum": 0.0}
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observed_defects",
+        "selected_hidden",
+        "selected_total",
+        "selected_method",
+        "sparse_data",
+        "low_doubleton_support",
+        "ice_low_coverage",
+        "estimator_guard_applied",
+        "global_k_eff",
+        "mean_psi_post"
+      ],
+      "properties": {
+        "observed_defects": {"type": "integer", "minimum": 0},
+        "selected_hidden": {"type": "number", "minimum": 0.0},
+        "selected_total": {"type": "number", "minimum": 0.0},
+        "selected_method": {"type": "string", "const": "max_hidden"},
+        "sparse_data": {"type": "boolean"},
+        "low_doubleton_support": {"type": "boolean"},
+        "ice_low_coverage": {"type": "boolean"},
+        "estimator_guard_applied": {"type": "boolean"},
+        "global_k_eff": {"type": "integer", "minimum": 0},
+        "mean_psi_post": {"type": "number", "minimum": 0.0, "maximum": 1.0}
       }
     },
     "provenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["algorithm"],
+      "required": ["algorithm", "deterministic", "inputs", "inclusion_policy", "selection_policy"],
       "properties": {
-        "algorithm": {"type": "string", "minLength": 1}
+        "algorithm": {"type": "string", "const": "capture_estimate_v1"},
+        "deterministic": {"type": "boolean"},
+        "inputs": {"const": ["telemetry_matrix.json", "occupancy_snapshot.json"]},
+        "inclusion_policy": {"type": "string", "const": "include_all"},
+        "selection_policy": {"type": "string", "const": "max_hidden"}
       }
     }
   }

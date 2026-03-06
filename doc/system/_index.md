@@ -1,6 +1,6 @@
 # Forge Eval System Documentation
 
-> BDS Documentation Protocol v1.0 - modular reference for deterministic Packs A-F
+> BDS Documentation Protocol v1.0 - modular reference for deterministic Packs A-J
 
 | Part | File | Contents |
 |------|------|----------|
@@ -15,6 +15,10 @@
 | §9 | [09-schemas-validation-errors.md](09-schemas-validation-errors.md) | Strict schemas, validation, structured failures |
 | §10 | [10-testing-determinism.md](10-testing-determinism.md) | Test matrix and repeatability checks |
 | §11 | [11-handover-runbook.md](11-handover-runbook.md) | Build/run/validate runbook and constraints |
+| §12 | [12-reviewer-execution-stage.md](12-reviewer-execution-stage.md) | Pack G deterministic reviewer execution and findings |
+| §13 | [13-telemetry-matrix-stage.md](13-telemetry-matrix-stage.md) | Pack H deterministic telemetry matrix and conservative `k_eff` |
+| §14 | [14-occupancy-snapshot-stage.md](14-occupancy-snapshot-stage.md) | Pack I deterministic occupancy posterior (`psi_post`) |
+| §15 | [15-capture-estimate-stage.md](15-capture-estimate-stage.md) | Pack J deterministic hidden-defect estimation via Chao1 and ICE |
 
 ## Quick Assembly
 
@@ -22,4 +26,4 @@
 bash doc/system/BUILD.sh   # Assembles all parts into doc/feSYSTEM.md
 ```
 
-*Last updated: 2026-03-05*
+*Last updated: 2026-03-06*

@@ -6,16 +6,31 @@ from pathlib import Path
 from typing import Any
 
 from forge_eval.errors import StageError, ValidationError
+from forge_eval.stages.capture_estimate import run_stage as run_capture_estimate_stage
 from forge_eval.services.git_diff import resolve_commit
+from forge_eval.stages.occupancy_snapshot import run_stage as run_occupancy_snapshot_stage
 from forge_eval.stages.context_slices import run_stage as run_context_slices_stage
+from forge_eval.stages.reviewer_execution import run_stage as run_reviewer_execution_stage
 from forge_eval.stages.risk_heatmap import run_stage as run_risk_heatmap_stage
+from forge_eval.stages.telemetry_matrix import run_stage as run_telemetry_matrix_stage
 from forge_eval.validation.schema_loader import SCHEMA_BY_ARTIFACT, load_all_schemas
 from forge_eval.validation.validate_artifact import load_json_file, validate_instance
 
-STAGE_ORDER = ("risk_heatmap", "context_slices")
+STAGE_ORDER = (
+    "risk_heatmap",
+    "context_slices",
+    "review_findings",
+    "telemetry_matrix",
+    "occupancy_snapshot",
+    "capture_estimate",
+)
 STAGE_TO_ARTIFACT_KIND = {
     "risk_heatmap": "risk_heatmap",
     "context_slices": "context_slices",
+    "review_findings": "review_findings",
+    "telemetry_matrix": "telemetry_matrix",
+    "occupancy_snapshot": "occupancy_snapshot",
+    "capture_estimate": "capture_estimate",
 }
 
 
@@ -39,6 +54,8 @@ def _run_stage(
     repo_path: Path,
     base_ref: str,
     head_ref: str,
+    base_commit: str,
+    head_commit: str,
     run_id: str,
     config: dict[str, Any],
     prior_artifacts: dict[str, dict[str, Any]],
@@ -64,6 +81,80 @@ def _run_stage(
             run_id=run_id,
             config=config,
             target_file_subset=subset,
+        )
+
+    if stage == "review_findings":
+        context_artifact = prior_artifacts.get("context_slices")
+        if context_artifact is None:
+            raise StageError(
+                "review_findings stage requires context_slices artifact",
+                stage=stage,
+            )
+        return run_reviewer_execution_stage(
+            repo_path=repo_path,
+            base_ref=base_ref,
+            head_ref=head_ref,
+            run_id=run_id,
+            config=config,
+            context_slices_artifact=context_artifact,
+            risk_heatmap_artifact=prior_artifacts.get("risk_heatmap"),
+            base_commit=base_commit,
+            head_commit=head_commit,
+        )
+
+    if stage == "telemetry_matrix":
+        review_artifact = prior_artifacts.get("review_findings")
+        if review_artifact is None:
+            raise StageError(
+                "telemetry_matrix stage requires review_findings artifact",
+                stage=stage,
+            )
+        return run_telemetry_matrix_stage(
+            repo_path=repo_path,
+            base_ref=base_ref,
+            head_ref=head_ref,
+            run_id=run_id,
+            config=config,
+            review_findings_artifact=review_artifact,
+        )
+
+    if stage == "occupancy_snapshot":
+        telemetry_artifact = prior_artifacts.get("telemetry_matrix")
+        if telemetry_artifact is None:
+            raise StageError(
+                "occupancy_snapshot stage requires telemetry_matrix artifact",
+                stage=stage,
+            )
+        return run_occupancy_snapshot_stage(
+            repo_path=repo_path,
+            base_ref=base_ref,
+            head_ref=head_ref,
+            run_id=run_id,
+            config=config,
+            telemetry_matrix_artifact=telemetry_artifact,
+        )
+
+    if stage == "capture_estimate":
+        telemetry_artifact = prior_artifacts.get("telemetry_matrix")
+        occupancy_artifact = prior_artifacts.get("occupancy_snapshot")
+        if telemetry_artifact is None:
+            raise StageError(
+                "capture_estimate stage requires telemetry_matrix artifact",
+                stage=stage,
+            )
+        if occupancy_artifact is None:
+            raise StageError(
+                "capture_estimate stage requires occupancy_snapshot artifact",
+                stage=stage,
+            )
+        return run_capture_estimate_stage(
+            repo_path=repo_path,
+            base_ref=base_ref,
+            head_ref=head_ref,
+            run_id=run_id,
+            config=config,
+            telemetry_matrix_artifact=telemetry_artifact,
+            occupancy_snapshot_artifact=occupancy_artifact,
         )
 
     raise StageError("unknown stage requested", stage=stage, details={"stage": stage})
@@ -121,6 +212,8 @@ def run_pipeline(
             repo_path=repo,
             base_ref=base_ref,
             head_ref=head_ref,
+            base_commit=base_commit,
+            head_commit=head_commit,
             run_id=run_id,
             config=config,
             prior_artifacts=artifact_results,

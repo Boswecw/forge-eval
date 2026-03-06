@@ -9,10 +9,46 @@ import yaml
 
 from forge_eval.errors import ConfigError
 
-KNOWN_STAGES = ("risk_heatmap", "context_slices")
+KNOWN_STAGES = (
+    "risk_heatmap",
+    "context_slices",
+    "review_findings",
+    "telemetry_matrix",
+    "occupancy_snapshot",
+    "capture_estimate",
+)
+KNOWN_REVIEWER_KINDS = (
+    "changed_lines",
+    "documentation_consistency",
+    "structural_risk",
+)
+KNOWN_REVIEWER_FAILURE_MODES = ("fail_stage", "record_failed")
+KNOWN_REVIEWER_FAILURE_POLICIES = ("fail_stage", "record_and_continue")
+KNOWN_TELEMETRY_APPLICABILITY_MODES = ("reviewer_kind_scope_v1",)
+KNOWN_TELEMETRY_KEFF_MODES = ("global_min_per_defect",)
+KNOWN_OCCUPANCY_MODEL_VERSIONS = ("occupancy_rev1",)
+KNOWN_CAPTURE_INCLUSION_POLICIES = ("include_all",)
+KNOWN_CAPTURE_SELECTION_POLICIES = ("max_hidden",)
+KNOWN_SEVERITIES = ("low", "medium", "high", "critical")
+KNOWN_CATEGORIES = (
+    "correctness",
+    "consistency",
+    "docs",
+    "policy",
+    "risk",
+    "schema",
+    "unknown",
+)
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "enabled_stages": ["risk_heatmap", "context_slices"],
+    "enabled_stages": [
+        "risk_heatmap",
+        "context_slices",
+        "review_findings",
+        "telemetry_matrix",
+        "occupancy_snapshot",
+        "capture_estimate",
+    ],
     "risk_weights": {
         "w_churn": 0.45,
         "w_centrality": 0.35,
@@ -37,6 +73,60 @@ DEFAULT_CONFIG: dict[str, Any] = {
     ],
     "exclude_paths": ["dist/", "build/", ".venv/", "node_modules/"],
     "binary_file_policy": "fail",
+    "reviewer_failure_policy": "fail_stage",
+    "telemetry_applicability_mode": "reviewer_kind_scope_v1",
+    "telemetry_k_eff_mode": "global_min_per_defect",
+    "occupancy_model_version": "occupancy_rev1",
+    "occupancy_prior_base": 0.45,
+    "occupancy_support_uplift": 0.20,
+    "occupancy_detection_assumption": 0.70,
+    "occupancy_miss_penalty_strength": 0.35,
+    "occupancy_null_uncertainty_boost": 0.30,
+    "occupancy_round_digits": 6,
+    "capture_inclusion_policy": "include_all",
+    "capture_selection_policy": "max_hidden",
+    "ice_rare_threshold": 10,
+    "capture_round_digits": 6,
+    "reviewers": [
+        {
+            "reviewer_id": "changed_lines.rule.v1",
+            "kind": "changed_lines",
+            "enabled": True,
+            "failure_mode": "fail_stage",
+            "scope_rules": {"include_extensions": [".md", ".py", ".json", ".rs", ".js", ".ts", ".tsx", ".jsx"]},
+            "finding_rules": {
+                "default_severity": "medium",
+                "default_category": "consistency",
+                "confidence": 0.7,
+            },
+        },
+        {
+            "reviewer_id": "documentation_consistency.v1",
+            "kind": "documentation_consistency",
+            "enabled": True,
+            "failure_mode": "fail_stage",
+            "scope_rules": {"include_extensions": [".md"]},
+            "finding_rules": {
+                "default_severity": "low",
+                "default_category": "docs",
+                "confidence": 0.65,
+                "require_code_and_docs": True,
+            },
+        },
+        {
+            "reviewer_id": "structural_risk.v1",
+            "kind": "structural_risk",
+            "enabled": True,
+            "failure_mode": "fail_stage",
+            "scope_rules": {"min_risk_score": 0.8},
+            "finding_rules": {
+                "default_severity": "medium",
+                "default_category": "risk",
+                "confidence": 0.75,
+                "risk_threshold": 0.8,
+            },
+        },
+    ],
 }
 
 
@@ -143,6 +233,147 @@ def _normalize_risk_weights(values: Any) -> dict[str, float]:
     return {k: merged[k] / total for k in sorted(merged.keys())}
 
 
+def _normalize_scope_rules(values: Any) -> dict[str, Any]:
+    if not isinstance(values, dict):
+        raise ConfigError("reviewer scope_rules must be an object")
+    out: dict[str, Any] = {}
+
+    allowed = {"exclude_paths", "include_extensions", "min_risk_score"}
+    unknown = set(values.keys()) - allowed
+    if unknown:
+        raise ConfigError("unknown reviewer scope_rules keys", details={"keys": sorted(unknown)})
+
+    if "include_extensions" in values:
+        out["include_extensions"] = _normalize_extensions(values["include_extensions"])
+    else:
+        out["include_extensions"] = []
+
+    if "exclude_paths" in values:
+        out["exclude_paths"] = _normalize_exclude_paths(values["exclude_paths"])
+    else:
+        out["exclude_paths"] = []
+
+    if "min_risk_score" in values:
+        score = _ensure_number("scope_rules.min_risk_score", values["min_risk_score"], min_value=0.0)
+        if score > 1.0:
+            raise ConfigError(
+                "scope_rules.min_risk_score must be <= 1.0",
+                details={"value": score},
+            )
+        out["min_risk_score"] = score
+    else:
+        out["min_risk_score"] = 0.0
+
+    return out
+
+
+def _normalize_finding_rules(values: Any) -> dict[str, Any]:
+    if not isinstance(values, dict):
+        raise ConfigError("reviewer finding_rules must be an object")
+    out: dict[str, Any] = {}
+
+    allowed = {
+        "confidence",
+        "default_category",
+        "default_severity",
+        "require_code_and_docs",
+        "risk_threshold",
+    }
+    unknown = set(values.keys()) - allowed
+    if unknown:
+        raise ConfigError("unknown reviewer finding_rules keys", details={"keys": sorted(unknown)})
+
+    severity = values.get("default_severity", "medium")
+    if severity not in KNOWN_SEVERITIES:
+        raise ConfigError("invalid reviewer default severity", details={"severity": severity})
+    out["default_severity"] = severity
+
+    category = values.get("default_category", "unknown")
+    if category not in KNOWN_CATEGORIES:
+        raise ConfigError("invalid reviewer default category", details={"category": category})
+    out["default_category"] = category
+
+    confidence = values.get("confidence", 0.7)
+    out["confidence"] = _ensure_number("finding_rules.confidence", confidence, min_value=0.0)
+    if out["confidence"] > 1.0:
+        raise ConfigError("finding_rules.confidence must be <= 1.0", details={"confidence": out["confidence"]})
+
+    risk_threshold = values.get("risk_threshold", 0.8)
+    out["risk_threshold"] = _ensure_number("finding_rules.risk_threshold", risk_threshold, min_value=0.0)
+    if out["risk_threshold"] > 1.0:
+        raise ConfigError(
+            "finding_rules.risk_threshold must be <= 1.0",
+            details={"risk_threshold": out["risk_threshold"]},
+        )
+
+    require_code_and_docs = values.get("require_code_and_docs", False)
+    if not isinstance(require_code_and_docs, bool):
+        raise ConfigError("finding_rules.require_code_and_docs must be boolean")
+    out["require_code_and_docs"] = require_code_and_docs
+
+    return out
+
+
+def _normalize_reviewers(values: Any) -> list[dict[str, Any]]:
+    if not isinstance(values, list):
+        raise ConfigError("reviewers must be a list")
+
+    normalized: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+
+    for reviewer in values:
+        if not isinstance(reviewer, dict):
+            raise ConfigError("each reviewer must be an object")
+
+        allowed_keys = {"reviewer_id", "kind", "enabled", "failure_mode", "scope_rules", "finding_rules"}
+        unknown = set(reviewer.keys()) - allowed_keys
+        if unknown:
+            raise ConfigError("unknown reviewer keys", details={"keys": sorted(unknown)})
+
+        reviewer_id = reviewer.get("reviewer_id")
+        if not isinstance(reviewer_id, str) or not reviewer_id.strip():
+            raise ConfigError("reviewer_id must be a non-empty string")
+        reviewer_id = reviewer_id.strip()
+        if reviewer_id in seen_ids:
+            raise ConfigError("duplicate reviewer_id in config", details={"reviewer_id": reviewer_id})
+        seen_ids.add(reviewer_id)
+
+        kind = reviewer.get("kind")
+        if kind not in KNOWN_REVIEWER_KINDS:
+            raise ConfigError("unsupported reviewer kind", details={"reviewer_id": reviewer_id, "kind": kind})
+
+        enabled = reviewer.get("enabled")
+        if not isinstance(enabled, bool):
+            raise ConfigError("reviewer enabled must be boolean", details={"reviewer_id": reviewer_id})
+
+        failure_mode = reviewer.get("failure_mode")
+        if failure_mode not in KNOWN_REVIEWER_FAILURE_MODES:
+            raise ConfigError(
+                "invalid reviewer failure_mode",
+                details={"reviewer_id": reviewer_id, "failure_mode": failure_mode},
+            )
+
+        scope_rules = _normalize_scope_rules(reviewer.get("scope_rules", {}))
+        finding_rules = _normalize_finding_rules(reviewer.get("finding_rules", {}))
+
+        normalized.append(
+            {
+                "reviewer_id": reviewer_id,
+                "kind": kind,
+                "enabled": enabled,
+                "failure_mode": failure_mode,
+                "scope_rules": scope_rules,
+                "finding_rules": finding_rules,
+            }
+        )
+
+    if not normalized:
+        raise ConfigError("at least one reviewer must be configured")
+
+    normalized.sort(key=lambda item: str(item["reviewer_id"]))
+    return normalized
+
+
 def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
     cfg: dict[str, Any] = copy.deepcopy(DEFAULT_CONFIG)
     raw = raw or {}
@@ -207,8 +438,109 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
             raise ConfigError("binary_file_policy must be 'fail' or 'ignore'")
         cfg["binary_file_policy"] = value
 
+    if "reviewer_failure_policy" in raw:
+        value = raw["reviewer_failure_policy"]
+        if value not in KNOWN_REVIEWER_FAILURE_POLICIES:
+            raise ConfigError(
+                "reviewer_failure_policy must be 'fail_stage' or 'record_and_continue'"
+            )
+        cfg["reviewer_failure_policy"] = value
+
+    if "telemetry_applicability_mode" in raw:
+        value = raw["telemetry_applicability_mode"]
+        if value not in KNOWN_TELEMETRY_APPLICABILITY_MODES:
+            raise ConfigError(
+                "telemetry_applicability_mode must be 'reviewer_kind_scope_v1'"
+            )
+        cfg["telemetry_applicability_mode"] = value
+
+    if "telemetry_k_eff_mode" in raw:
+        value = raw["telemetry_k_eff_mode"]
+        if value not in KNOWN_TELEMETRY_KEFF_MODES:
+            raise ConfigError(
+                "telemetry_k_eff_mode must be 'global_min_per_defect'"
+            )
+        cfg["telemetry_k_eff_mode"] = value
+
+    if "occupancy_model_version" in raw:
+        value = raw["occupancy_model_version"]
+        if value not in KNOWN_OCCUPANCY_MODEL_VERSIONS:
+            raise ConfigError(
+                "occupancy_model_version must be 'occupancy_rev1'"
+            )
+        cfg["occupancy_model_version"] = value
+
+    occupancy_float_keys = (
+        "occupancy_prior_base",
+        "occupancy_support_uplift",
+        "occupancy_detection_assumption",
+        "occupancy_miss_penalty_strength",
+        "occupancy_null_uncertainty_boost",
+    )
+    for key in occupancy_float_keys:
+        if key not in raw:
+            continue
+        value = _ensure_number(key, raw[key], min_value=0.0)
+        if value > 1.0:
+            raise ConfigError("occupancy config value must be <= 1.0", details={"key": key, "value": value})
+        cfg[key] = value
+
+    if "occupancy_round_digits" in raw:
+        value = raw["occupancy_round_digits"]
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ConfigError("occupancy_round_digits must be an integer")
+        if value < 0 or value > 12:
+            raise ConfigError("occupancy_round_digits must be in [0, 12]", details={"value": value})
+        cfg["occupancy_round_digits"] = value
+
+    if "capture_inclusion_policy" in raw:
+        value = raw["capture_inclusion_policy"]
+        if value not in KNOWN_CAPTURE_INCLUSION_POLICIES:
+            raise ConfigError(
+                "capture_inclusion_policy must be 'include_all'"
+            )
+        cfg["capture_inclusion_policy"] = value
+
+    if "capture_selection_policy" in raw:
+        value = raw["capture_selection_policy"]
+        if value not in KNOWN_CAPTURE_SELECTION_POLICIES:
+            raise ConfigError(
+                "capture_selection_policy must be 'max_hidden'"
+            )
+        cfg["capture_selection_policy"] = value
+
+    if "ice_rare_threshold" in raw:
+        value = raw["ice_rare_threshold"]
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ConfigError("ice_rare_threshold must be an integer")
+        if value < 1:
+            raise ConfigError("ice_rare_threshold must be >= 1", details={"value": value})
+        cfg["ice_rare_threshold"] = value
+
+    if "capture_round_digits" in raw:
+        value = raw["capture_round_digits"]
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ConfigError("capture_round_digits must be an integer")
+        if value < 0 or value > 12:
+            raise ConfigError("capture_round_digits must be in [0, 12]", details={"value": value})
+        cfg["capture_round_digits"] = value
+
+    if "reviewers" in raw:
+        cfg["reviewers"] = _normalize_reviewers(raw["reviewers"])
+
     cfg["include_file_extensions"] = _normalize_extensions(cfg["include_file_extensions"])
     cfg["exclude_paths"] = _normalize_exclude_paths(cfg["exclude_paths"])
+    cfg["reviewers"] = _normalize_reviewers(cfg["reviewers"])
+
+    enabled_stage_set = set(cfg["enabled_stages"])
+    if "review_findings" in enabled_stage_set and "context_slices" not in enabled_stage_set:
+        raise ConfigError("review_findings stage requires context_slices stage to be enabled")
+    if "telemetry_matrix" in enabled_stage_set and "review_findings" not in enabled_stage_set:
+        raise ConfigError("telemetry_matrix stage requires review_findings stage to be enabled")
+    if "occupancy_snapshot" in enabled_stage_set and "telemetry_matrix" not in enabled_stage_set:
+        raise ConfigError("occupancy_snapshot stage requires telemetry_matrix stage to be enabled")
+    if "capture_estimate" in enabled_stage_set and "occupancy_snapshot" not in enabled_stage_set:
+        raise ConfigError("capture_estimate stage requires occupancy_snapshot stage to be enabled")
 
     return cfg
 
