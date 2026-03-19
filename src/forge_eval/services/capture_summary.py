@@ -10,6 +10,7 @@ def build_capture_summary(
     counts: dict[str, Any],
     selection: dict[str, Any],
     chao1: dict[str, Any],
+    chao2: dict[str, Any],
     ice: dict[str, Any],
     included_rows: list[dict[str, Any]],
     round_digits: int,
@@ -57,13 +58,18 @@ def build_capture_summary(
     sparse_data = included_count < 5 or global_k_eff < 2 or f1 > f2
     low_doubleton_support = f2 == 0
     ice_low_coverage = sample_coverage < 0.5
-    estimator_guard_applied = bool(chao1.get("guard_applied")) or bool(ice.get("guard_applied"))
+    chao2_guard = any(chao2.get("guard_flags", {}).values()) if chao2.get("available") else False
+    estimator_guard_applied = bool(chao1.get("guard_applied")) or chao2_guard or bool(ice.get("guard_applied"))
+
+    unavailable_estimators = selection.get("unavailable_estimators", [])
 
     return {
         "observed_defects": included_count,
+        "selection_policy": _required_string(selection, "selection_policy"),
+        "selected_method": _required_string(selection, "selected_source"),
         "selected_hidden": _required_non_negative_number(selection, "selected_hidden"),
         "selected_total": _required_non_negative_number(selection, "selected_total"),
-        "selected_method": _required_string(selection, "selected_method"),
+        "unavailable_estimators": list(unavailable_estimators),
         "sparse_data": sparse_data,
         "low_doubleton_support": low_doubleton_support,
         "ice_low_coverage": ice_low_coverage,

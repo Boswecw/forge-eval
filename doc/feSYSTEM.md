@@ -1,6 +1,6 @@
 # Forge Eval System Documentation
 
-**Document version:** 1.3 (2026-03-06) — Implemented Pack M evidence bundle stage and bounded runtime forge-evidence integration
+**Document version:** 1.4 (2026-03-07) — Added Pack N localization pack stage and NeuroForge LOC-GATE integration
 **Protocol:** Forge Documentation Protocol v1
 
 This `doc/system/` tree uses explicit truth classes:
@@ -34,6 +34,7 @@ Assembly contract:
 | §16 | [16-hazard-map-stage.md](16-hazard-map-stage.md) | Pack K deterministic hazard mapping from risk, telemetry, occupancy, and capture pressure |
 | §17 | [17-merge-decision-stage.md](17-merge-decision-stage.md) | Pack L deterministic advisory merge decision from Pack K hazard evidence |
 | §18 | [18-evidence-bundle-stage.md](18-evidence-bundle-stage.md) | Pack M deterministic evidence bundle assembly from the fixed A-L artifact chain |
+| §19 | [19-localization-pack-stage.md](19-localization-pack-stage.md) | Pack N deterministic localization pack from A-M evidence for bounded review/repair |
 
 ## Quick Assembly
 
@@ -41,7 +42,7 @@ Assembly contract:
 bash doc/system/BUILD.sh   # Assembles all parts into doc/feSYSTEM.md
 ```
 
-*Last updated: 2026-03-06*
+*Last updated: 2026-03-07*
 
 ---
 
@@ -989,9 +990,60 @@ Output:
 2. Cross-check defect sets and per-row observation counts across Pack H and Pack I.
 3. Build deterministic incidence counts and frequency-of-frequencies histogram.
 4. Compute bias-corrected Chao1 hidden estimate.
-5. Compute ICE hidden estimate with explicit low-information fallback.
-6. Select conservative hidden burden with `max_hidden`.
-7. Emit schema-valid counts, estimator details, summary flags, and provenance.
+5. Compute Chao2 incidence-based hidden estimate.
+6. Compute ICE hidden estimate with explicit low-information fallback.
+7. Select conservative hidden burden with fixed `max_hidden` policy across all available estimators.
+8. Emit schema-valid counts, estimator details, summary flags, and provenance.
+
+## Estimators
+
+### Chao1 (bias-corrected)
+
+Frequency-based estimator using singleton (f1) and doubleton (f2) counts. Uses the bias-corrected formula: `hidden = f1 * (f1 - 1) / (2 * (f2 + 1))`. Guard applied when f2 = 0.
+
+### Chao2 (incidence-based)
+
+Incidence-based estimator appropriate for sample/reviewer data. Uses Q1 (defects seen by exactly 1 reviewer), Q2 (defects seen by exactly 2 reviewers), and m (number of usable reviewers) from the telemetry matrix.
+
+Formula when Q2 > 0: `hidden = ((m - 1) / m) * (Q1^2 / (2 * Q2))`
+
+When Q2 = 0 and Q1 > 0: conservative fallback `hidden = ((m - 1) / m) * (Q1 * (Q1 - 1) / 2)`, with `q2_zero_fallback` guard flag set.
+
+When Q1 = 0: `hidden = 0.0` (no singleton pressure signal), with `q1_zero_no_signal` guard flag set.
+
+When m < 2: Chao2 is marked unavailable (not enough sampling units for the estimator to be meaningful). The stage proceeds with Chao1 and ICE only.
+
+Chao2 was added because Pack J already works with incidence/sample-style data (reviewer observations per defect), which is exactly what Chao2 expects. Q1 maps to f1, Q2 maps to f2, and m is derived from the telemetry summary's `k_usable` count.
+
+### ICE (Incidence-based Coverage Estimator)
+
+Rare/frequent split estimator using the incidence histogram. Computes sample coverage and coefficient of variation (gamma squared). Falls back to Chao1 hidden estimate when coverage collapses or rare-incidence support is too weak.
+
+### Why Chao1 is retained
+
+Chao1 is retained alongside Chao2 as a conservative comparator. Chao1 uses a simpler formula that is always computable (no minimum reviewer threshold), making it a reliable baseline even when Chao2 is unavailable.
+
+## Selection Policy
+
+One fixed deterministic rule governs which hidden estimate is used downstream:
+
+- **Policy:** `max_hidden` (always)
+- **Rule:** `selected_hidden = max(chao1_hidden, chao2_hidden, ice_hidden)` among available estimators only
+- **Selected source:** recorded as `selected_source` in `estimators`, and as `selected_method` in `summary`
+- **Unavailable estimators:** recorded explicitly in `unavailable_estimators` (never silently dropped)
+
+No discretionary selection. No case-by-case heuristics.
+
+## Estimator Execution Evidence
+
+The `capture_estimate.json` artifact records full execution evidence for all three estimators:
+
+- `estimators.chao1`: observed, hidden, total, formula_variant, guard_applied, inputs (f1, f2)
+- `estimators.chao2`: enabled, available, hidden_estimate, total_estimate, guard_flags, inputs_used (q1, q2, m), reason_unavailable
+- `estimators.ice`: observed, hidden, total, rare_threshold, sample_coverage, formula_variant, guard_applied, inputs
+- `estimators.selection_policy`: the fixed selection rule ("max_hidden")
+- `estimators.selected_source`: which estimator produced the governing hidden estimate
+- `estimators.unavailable_estimators`: list of estimators that could not be computed
 
 ## Core Semantics
 
@@ -1004,10 +1056,11 @@ Output:
 
 - inclusion policy: `include_all`
 - Chao1 variant: `bias_corrected`
+- Chao2 sampling units: `k_usable` from telemetry summary
 - ICE rare threshold: config-locked `ice_rare_threshold` (default `10`)
 - selection policy: `max_hidden`
 
-When ICE coverage collapses or rare-incidence support is too weak, Pack J uses an explicit fallback path instead of dividing by zero or silently returning zero hidden defects.
+When ICE coverage collapses or rare-incidence support is too weak, Pack J uses an explicit fallback path instead of dividing by zero or silently returning zero hidden defects. When Chao2 cannot run (m < 2), it is marked unavailable and selection proceeds with the remaining estimators.
 
 ## Fail-Closed Behavior
 
@@ -1016,6 +1069,7 @@ When ICE coverage collapses or rare-incidence support is too weak, Pack J uses a
 - included row with zero positive incidence -> stage failure.
 - unsupported inclusion or selection policy -> stage failure.
 - invalid histogram keys/counts or negative estimator outputs -> stage failure.
+- invalid telemetry `k_usable` -> stage failure.
 - schema validation failure -> run failure.
 
 ## Determinism Notes
@@ -1024,6 +1078,7 @@ When ICE coverage collapses or rare-incidence support is too weak, Pack J uses a
 - histogram keys are emitted as sorted decimal strings.
 - estimator rounding is fixed by `capture_round_digits`.
 - selected hidden estimate is explicit and conservative.
+- all three estimator outputs are deterministic given identical inputs.
 
 ---
 
@@ -1291,3 +1346,166 @@ Artifact order is fixed:
 - manifest paths are relative and stable across output directories
 - Pack M does not hash or embed its own output file recursively
 - repeated identical inputs must produce byte-identical `evidence_bundle.json`
+
+---
+
+# 19 - Pack N: Localization Pack Stage
+
+## Stage Contract
+
+Input:
+
+- `risk_heatmap` artifact (required)
+- `context_slices` artifact (required)
+- `review_findings` artifact (required)
+- `telemetry_matrix` artifact (required)
+- `hazard_map` artifact (required)
+- `occupancy_snapshot` artifact (optional)
+- normalized localization config block (required)
+
+Output:
+
+- `localization_pack.json` (schema kind: `localization_pack`)
+- Downstream consumer: NeuroForge localized review/repair mode
+
+## Execution Model
+
+1. Validate all required upstream artifacts and enforce kind alignment.
+2. Score file candidates using configurable ranking weights (support_count, defect_density, hazard_contribution, churn).
+3. Score block candidates at slice granularity using the same weight vector.
+4. Compute per-candidate confidence as a blend of support normalization and evidence density.
+5. Enrich block candidates with deterministic construct extraction (language detection, framework hints, likely constructs, root cause hypothesis).
+6. Compile review scope by grouping blocks by file, merging overlapping ranges, and clamping per-file and total line counts.
+7. Build patch scope from upstream patch targets (passthrough, sorted deterministically).
+8. Assemble summary with `summary_confidence = min(block confidences)`.
+9. Emit schema-valid localization_pack artifact with model and provenance metadata.
+
+## Core Signals
+
+Pack N compiles evidence from four upstream artifacts:
+
+- structural risk from `risk_heatmap`
+- code context from `context_slices`
+- defect evidence from `review_findings` and `telemetry_matrix`
+- hazard assessment from `hazard_map`
+
+## Model Rules (Rev 1)
+
+- model version: `localization_pack_rev1`
+- ranking policy: `heuristic_v1`
+- scope merge policy: `deterministic_merge_v1`
+- construct extraction policy: `ast_heuristic_v1`
+
+### Ranking Weights (normalized to unit sum)
+
+| Weight | Default |
+|--------|---------|
+| support_count | 0.35 |
+| defect_density | 0.25 |
+| hazard_contribution | 0.25 |
+| churn | 0.15 |
+
+### Config Keys
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `localization_model_version` | `localization_pack_rev1` | Model version tag |
+| `localization_max_file_candidates` | 10 | Max file candidates emitted |
+| `localization_max_block_candidates` | 20 | Max block candidates emitted |
+| `localization_max_review_scope_lines` | 500 | Total review scope line cap |
+| `localization_max_scope_lines_per_file` | 150 | Per-file review scope line cap |
+| `localization_round_digits` | 6 | Decimal rounding precision |
+| `localization_ranking_weights` | see above | Weight vector (normalized) |
+
+## Construct Extraction
+
+Per-language keyword/pattern heuristics (no LLM inference in v1):
+
+- **Python**: `if_guard`, `async_call`, `try_except`, `return_boundary`, `serialization_boundary`, `dependency_call`
+- **Rust**: `if_guard`, `match_arm`, `borrow_boundary`, `async_task_boundary`, `trait_dispatch`, `error_propagation`
+- **TypeScript**: `if_guard`, `async_call`, `null_check`, `type_assertion`, `promise_chain`
+- **Svelte**: `if_guard`, `reactive_state`, `derived_state`, `effect_boundary`, `prop_mutation`, `async_ui_transition`
+
+### Root Cause Hypothesis (locked v1 vocabulary)
+
+`boundary_violation` | `null_path` | `async_race` | `missing_guard` | `serialization_boundary` | `ownership_violation` | `reactive_state_mutation` | `other` | `null`
+
+## Review Scope Compilation
+
+1. Group block candidates by file path.
+2. Merge overlapping line ranges (union).
+3. Clamp per-file to `max_scope_lines_per_file`.
+4. Clamp total to `max_review_scope_lines`.
+5. Fail closed if no valid scope remains.
+
+## Artifact Schema
+
+Both `localization_pack.schema.json` and `localization_summary.schema.json` enforce `additionalProperties: false` at all levels.
+
+Key schema constraints:
+- `detected_language`: `["python", "rust", "typescript", "svelte", "other", null]`
+- `hazard_tier`: `["low", "guarded", "elevated", "high", "critical"]` (Pack K vocabulary)
+- `root_cause_hypothesis`: bounded enum (9 values including `other` and `null`)
+- `provenance.deterministic`: `const: true`
+
+## NeuroForge Integration
+
+### LOC-GATE Error Codes
+
+| Code | Meaning | Recoverable |
+|------|---------|-------------|
+| `LOC-GATE-MISSING` | Repair requested, no localization artifact | No |
+| `LOC-GATE-INVALID-REF` | Ref unresolvable under trusted roots | No |
+| `LOC-GATE-SCHEMA-INVALID` | Pack fails schema validation | No |
+| `LOC-GATE-RUN-MISMATCH` | run_id mismatch | No |
+| `LOC-GATE-SCOPE-EMPTY` | review_scope is empty | No |
+| `LOC-GATE-NO-SCOPE` | Patch target outside scope | No |
+
+All LOC-GATE codes: `category=LOCALIZATION_CONTRACT`.
+
+### Gate Execution Order (repair tasks)
+
+1. LOC-GATE checks (1-6 above)
+2. MAPO-TGT-GATE checks (unchanged)
+3. MRPA apply
+
+### Prompt Compiler
+
+When localization input is valid:
+- Prepends localized review contract text
+- Renders only review_scope blocks as context
+- Includes likely_constructs and root_cause_hypothesis per block
+- Suppresses out-of-scope file/repo context
+- `allow_analysis_only=true` suppresses patch_scope rendering
+
+## Telemetry
+
+Pack N stage logs:
+- `localization_model_version`
+- `file_candidate_count`, `block_candidate_count`
+- `review_scope_line_count`, `patch_scope_present`
+- `summary_confidence`, `hazard_tier`
+
+NeuroForge LOC-GATE logs:
+- `localization_artifact_ref`
+- `localized_review_mode_enabled`
+- `repair_blocked_reason` (on gate failure)
+- `repair_downgraded` (on analysis-only)
+- `approved_region_count`
+
+## Fail-Closed Rules
+
+- Required upstream artifact missing: stage failure
+- Ranking cannot be performed deterministically: stage failure
+- Review scope cannot be compiled: stage failure
+- Line bounds invalid: stage failure
+- Schema validation failure: stage failure
+- Empty review scope: `LOC-GATE-SCOPE-EMPTY`
+
+## Determinism Guarantee
+
+Identical inputs produce byte-identical `localization_pack.json` artifacts. Enforced by:
+- `sort_keys=True`, compact separators in JSON serialization
+- Deterministic sort order (score descending, then alphabetical tie-breaking)
+- No LLM inference in Pack N v1
+- No clock/timestamp fields in canonical artifact

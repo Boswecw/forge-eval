@@ -1,6 +1,6 @@
 # Forge Eval System Documentation
 
-**Document version:** 1.3 (2026-03-06) — Implemented Pack M evidence bundle stage and bounded runtime forge-evidence integration
+**Document version:** 1.4 (2026-03-07) — Added Pack N localization pack stage and NeuroForge LOC-GATE integration
 **Protocol:** Forge Documentation Protocol v1
 
 This `doc/system/` tree uses explicit truth classes:
@@ -34,6 +34,7 @@ Assembly contract:
 | §16 | [16-hazard-map-stage.md](16-hazard-map-stage.md) | Pack K deterministic hazard mapping from risk, telemetry, occupancy, and capture pressure |
 | §17 | [17-merge-decision-stage.md](17-merge-decision-stage.md) | Pack L deterministic advisory merge decision from Pack K hazard evidence |
 | §18 | [18-evidence-bundle-stage.md](18-evidence-bundle-stage.md) | Pack M deterministic evidence bundle assembly from the fixed A-L artifact chain |
+| §19 | [19-localization-pack-stage.md](19-localization-pack-stage.md) | Pack N deterministic localization pack from A-M evidence for bounded review/repair |
 
 ## Quick Assembly
 
@@ -41,4 +42,4 @@ Assembly contract:
 bash doc/system/BUILD.sh   # Assembles all parts into doc/feSYSTEM.md
 ```
 
-*Last updated: 2026-03-06*
+*Last updated: 2026-03-07*

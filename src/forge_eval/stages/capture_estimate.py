@@ -8,6 +8,7 @@ from forge_eval.services.capture_counts import build_capture_counts
 from forge_eval.services.capture_selection import select_hidden_estimate
 from forge_eval.services.capture_summary import build_capture_summary
 from forge_eval.services.chao1 import estimate_chao1
+from forge_eval.services.chao2 import estimate_chao2
 from forge_eval.services.ice import estimate_ice
 
 
@@ -38,10 +39,26 @@ def run_stage(
     included_rows = counts_result["included_rows"]
 
     observed = int(counts["included_rows"])
+    telemetry_summary = telemetry_matrix_artifact["summary"]
+    k_usable = telemetry_summary.get("k_usable")
+    if isinstance(k_usable, bool) or not isinstance(k_usable, int) or k_usable < 0:
+        raise StageError(
+            "telemetry summary has invalid k_usable",
+            stage="capture_estimate",
+            details={"k_usable": k_usable},
+        )
+
     chao1 = estimate_chao1(
         observed=observed,
         f1=int(counts["f1"]),
         f2=int(counts["f2"]),
+        round_digits=round_digits,
+    )
+    chao2 = estimate_chao2(
+        observed=observed,
+        q1=int(counts["f1"]),
+        q2=int(counts["f2"]),
+        m=int(k_usable),
         round_digits=round_digits,
     )
     ice = estimate_ice(
@@ -54,6 +71,7 @@ def run_stage(
     selection = select_hidden_estimate(
         observed=observed,
         chao1=chao1,
+        chao2=chao2,
         ice=ice,
         selection_policy=str(config["capture_selection_policy"]),
         round_digits=round_digits,
@@ -62,6 +80,7 @@ def run_stage(
         counts=counts,
         selection=selection,
         chao1=chao1,
+        chao2=chao2,
         ice=ice,
         included_rows=included_rows,
         round_digits=round_digits,
@@ -95,6 +114,7 @@ def run_stage(
         "counts": counts,
         "estimators": {
             "chao1": chao1,
+            "chao2": chao2,
             "ice": ice,
             **selection,
         },

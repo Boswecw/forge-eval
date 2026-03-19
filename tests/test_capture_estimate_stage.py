@@ -4,9 +4,16 @@ from pathlib import Path
 
 import pytest
 
+import copy
+import json
+
 from forge_eval.config import normalize_config
-from forge_eval.errors import StageError
+from forge_eval.errors import StageError, ValidationError
+from forge_eval.services.chao2 import estimate_chao2
+from forge_eval.services.capture_selection import select_hidden_estimate
 from forge_eval.stages.capture_estimate import run_stage
+from forge_eval.validation.schema_loader import load_all_schemas
+from forge_eval.validation.validate_artifact import validate_instance
 
 
 def _telemetry_artifact_repeat_supported() -> dict[str, object]:
@@ -501,10 +508,17 @@ def test_capture_estimate_emits_estimators_counts_and_selection() -> None:
     assert out["counts"]["incidence_histogram"] == {"1": 2, "2": 1, "3": 1}
     assert out["estimators"]["chao1"]["hidden"] == 0.5
     assert out["estimators"]["ice"]["hidden"] > out["estimators"]["chao1"]["hidden"]
+    assert out["estimators"]["selection_policy"] == "max_hidden"
     assert out["estimators"]["selected_method"] == "max_hidden"
     assert out["estimators"]["selected_source"] == "ice"
     assert out["estimators"]["selected_hidden"] == out["estimators"]["ice"]["hidden"]
+    assert out["estimators"]["chao2"]["available"] is True
+    assert out["estimators"]["chao2"]["hidden_estimate"] is not None
+    assert out["estimators"]["unavailable_estimators"] == []
     assert out["summary"]["selected_hidden"] == out["estimators"]["selected_hidden"]
+    assert out["summary"]["selection_policy"] == "max_hidden"
+    assert out["summary"]["selected_method"] == "ice"
+    assert out["summary"]["unavailable_estimators"] == []
 
 
 def test_capture_estimate_singleton_heavy_inflates_hidden_more_than_repeat_supported() -> None:
@@ -585,3 +599,136 @@ def test_capture_estimate_mismatched_occupancy_counts_fail_closed() -> None:
             telemetry_matrix_artifact=_telemetry_artifact_repeat_supported(),
             occupancy_snapshot_artifact=occupancy,
         )
+
+
+# ---------------------------------------------------------------------------
+# Chao2 revision tests (10 required)
+# ---------------------------------------------------------------------------
+
+
+def _run_stage_default(
+    telemetry: dict | None = None,
+    occupancy: dict | None = None,
+) -> dict:
+    cfg = normalize_config({})
+    return run_stage(
+        repo_path=Path("/tmp/repo"),
+        base_ref="base",
+        head_ref="head",
+        run_id="run",
+        config=cfg,
+        telemetry_matrix_artifact=telemetry or _telemetry_artifact_repeat_supported(),
+        occupancy_snapshot_artifact=occupancy or _occupancy_artifact_repeat_supported(),
+    )
+
+
+def test_chao2_positive_calculation() -> None:
+    """Test 1: Chao2 positive calculation — valid Q1, Q2, m produce correct hidden estimate."""
+    # q1=2, q2=1, m=3 -> hidden = ((3-1)/3) * (2^2 / (2*1)) = (2/3)*2 = 1.333333
+    result = estimate_chao2(observed=4, q1=2, q2=1, m=3, round_digits=6)
+    assert result["available"] is True
+    assert result["enabled"] is True
+    assert result["hidden_estimate"] == 1.333333
+    assert result["total_estimate"] == 5.333333
+    assert result["guard_flags"]["q2_zero_fallback"] is False
+    assert result["guard_flags"]["q1_zero_no_signal"] is False
+    assert result["inputs_used"] == {"q1": 2, "q2": 1, "m": 3}
+    assert result["reason_unavailable"] is None
+
+
+def test_chao2_q2_zero_guard() -> None:
+    """Test 2: Chao2 Q2=0 guard — uses fallback formula and sets guard flag."""
+    # q1=3, q2=0, m=3 -> hidden = ((3-1)/3) * (3*(3-1)/2) = (2/3)*3 = 2.0
+    result = estimate_chao2(observed=3, q1=3, q2=0, m=3, round_digits=6)
+    assert result["available"] is True
+    assert result["hidden_estimate"] == 2.0
+    assert result["total_estimate"] == 5.0
+    assert result["guard_flags"]["q2_zero_fallback"] is True
+    assert result["guard_flags"]["q1_zero_no_signal"] is False
+
+
+def test_chao2_unavailable_low_m() -> None:
+    """Test 3: Chao2 unavailable — m < 2 marks unavailable with explicit reason."""
+    result = estimate_chao2(observed=4, q1=2, q2=1, m=1, round_digits=6)
+    assert result["available"] is False
+    assert result["hidden_estimate"] is None
+    assert result["total_estimate"] is None
+    assert "m < 2" in result["reason_unavailable"]
+    assert result["enabled"] is True
+
+
+def test_selection_policy_chao2_wins() -> None:
+    """Test 4: Selection policy — Chao2 wins when it has highest hidden estimate."""
+    chao1 = {"hidden": 1.0, "total": 5.0, "observed": 4}
+    chao2 = {"available": True, "hidden_estimate": 3.0, "total_estimate": 7.0}
+    ice = {"hidden": 2.0, "total": 6.0, "observed": 4}
+    sel = select_hidden_estimate(
+        observed=4, chao1=chao1, chao2=chao2, ice=ice,
+        selection_policy="max_hidden", round_digits=6,
+    )
+    assert sel["selected_source"] == "chao2"
+    assert sel["selected_hidden"] == 3.0
+    assert sel["selection_policy"] == "max_hidden"
+    assert sel["selected_method"] == "max_hidden"
+    assert sel["unavailable_estimators"] == []
+
+
+def test_selection_policy_chao1_wins() -> None:
+    """Test 5: Selection policy — Chao1 wins when it has highest hidden estimate."""
+    chao1 = {"hidden": 5.0, "total": 9.0, "observed": 4}
+    chao2 = {"available": True, "hidden_estimate": 2.0, "total_estimate": 6.0}
+    ice = {"hidden": 3.0, "total": 7.0, "observed": 4}
+    sel = select_hidden_estimate(
+        observed=4, chao1=chao1, chao2=chao2, ice=ice,
+        selection_policy="max_hidden", round_digits=6,
+    )
+    assert sel["selected_source"] == "chao1"
+    assert sel["selected_hidden"] == 5.0
+
+
+def test_selection_policy_ice_wins() -> None:
+    """Test 6: Selection policy — ICE wins when it has highest hidden estimate."""
+    out = _run_stage_default()
+    # In repeat_supported: ICE hidden > Chao2 hidden > Chao1 hidden
+    assert out["estimators"]["selected_source"] == "ice"
+    assert out["estimators"]["selected_hidden"] == out["estimators"]["ice"]["hidden"]
+
+
+def test_unavailable_estimator_recording() -> None:
+    """Test 7: Unavailable estimator recording — Chao2 unavailable appears in list."""
+    telemetry = _telemetry_artifact_repeat_supported()
+    telemetry["summary"]["k_usable"] = 1  # m < 2 -> Chao2 unavailable
+    telemetry["summary"]["k_eff"] = 1
+    out = _run_stage_default(telemetry=telemetry)
+    assert out["estimators"]["chao2"]["available"] is False
+    assert out["estimators"]["chao2"]["reason_unavailable"] is not None
+    assert "chao2" in out["estimators"]["unavailable_estimators"]
+    assert "chao2" in out["summary"]["unavailable_estimators"]
+    # Stage still succeeds — Chao1 and ICE are available
+    assert out["estimators"]["selected_source"] in ("chao1", "ice", "tie")
+
+
+def test_chao2_schema_validation_accepts_valid() -> None:
+    """Test 8: Schema validation — revised capture_estimate.json validates against schema."""
+    schemas = load_all_schemas()
+    out = _run_stage_default()
+    validate_instance(out, schemas["capture_estimate"], artifact_kind="capture_estimate")
+
+
+def test_chao2_schema_validation_rejects_malformed() -> None:
+    """Test 9: Schema rejection — malformed Chao2 block fails schema validation."""
+    schemas = load_all_schemas()
+    out = _run_stage_default()
+    broken = copy.deepcopy(out)
+    del broken["estimators"]["chao2"]["guard_flags"]
+    with pytest.raises(ValidationError):
+        validate_instance(broken, schemas["capture_estimate"], artifact_kind="capture_estimate")
+
+
+def test_chao2_determinism() -> None:
+    """Test 10: Determinism — identical inputs produce byte-identical output."""
+    out1 = _run_stage_default()
+    out2 = _run_stage_default()
+    json1 = json.dumps(out1, sort_keys=True, separators=(",", ":"))
+    json2 = json.dumps(out2, sort_keys=True, separators=(",", ":"))
+    assert json1 == json2

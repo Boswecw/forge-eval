@@ -8,6 +8,7 @@ from typing import Any
 from forge_eval.errors import StageError, ValidationError
 from forge_eval.stages.capture_estimate import run_stage as run_capture_estimate_stage
 from forge_eval.stages.evidence_bundle import run_stage as run_evidence_bundle_stage
+from forge_eval.stages.localization_pack import run_stage as run_localization_pack_stage
 from forge_eval.stages.hazard_map import run_stage as run_hazard_map_stage
 from forge_eval.stages.merge_decision import run_stage as run_merge_decision_stage
 from forge_eval.services.git_diff import resolve_commit
@@ -29,6 +30,7 @@ STAGE_ORDER = (
     "hazard_map",
     "merge_decision",
     "evidence_bundle",
+    "localization_pack",
 )
 STAGE_TO_ARTIFACT_KIND = {
     "risk_heatmap": "risk_heatmap",
@@ -40,6 +42,7 @@ STAGE_TO_ARTIFACT_KIND = {
     "hazard_map": "hazard_map",
     "merge_decision": "merge_decision",
     "evidence_bundle": "evidence_bundle",
+    "localization_pack": "localization_pack",
 }
 
 
@@ -254,6 +257,31 @@ def _run_stage(
             capture_estimate_artifact=required_artifacts["capture_estimate"],
             hazard_map_artifact=required_artifacts["hazard_map"],
             merge_decision_artifact=required_artifacts["merge_decision"],
+        )
+
+    if stage == "localization_pack":
+        required_kinds = (
+            "risk_heatmap",
+            "context_slices",
+            "review_findings",
+            "telemetry_matrix",
+            "hazard_map",
+        )
+        for kind in required_kinds:
+            if prior_artifacts.get(kind) is None:
+                raise StageError(
+                    f"localization_pack stage requires {kind} artifact",
+                    stage=stage,
+                )
+        return run_localization_pack_stage(
+            run_id=run_id,
+            config=config,
+            risk_heatmap_artifact=prior_artifacts["risk_heatmap"],
+            context_slices_artifact=prior_artifacts["context_slices"],
+            review_findings_artifact=prior_artifacts["review_findings"],
+            telemetry_matrix_artifact=prior_artifacts["telemetry_matrix"],
+            hazard_map_artifact=prior_artifacts["hazard_map"],
+            occupancy_snapshot_artifact=prior_artifacts.get("occupancy_snapshot"),
         )
 
     raise StageError("unknown stage requested", stage=stage, details={"stage": stage})

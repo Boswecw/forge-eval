@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LocalizationPack",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["artifact_version", "kind", "run_id", "source_artifacts",
+               "file_candidates", "function_candidates", "block_candidates",
+               "review_scope", "patch_scope", "summary", "model", "provenance"],
+  "properties": {
+    "artifact_version": {"type": "string", "const": "localization_pack.v1"},
+    "kind": {"type": "string", "const": "localization_pack"},
+    "run_id": {"type": "string"},
+    "source_artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["risk_heatmap_ref", "context_slices_ref",
+                   "review_findings_ref", "telemetry_matrix_ref"],
+      "properties": {
+        "risk_heatmap_ref": {"type": "string"},
+        "context_slices_ref": {"type": "string"},
+        "review_findings_ref": {"type": "string"},
+        "telemetry_matrix_ref": {"type": "string"},
+        "occupancy_snapshot_ref": {"type": ["string", "null"]},
+        "hazard_map_ref": {"type": ["string", "null"]},
+        "patch_targets_ref": {"type": ["string", "null"]},
+        "concernspans_ref": {"type": ["string", "null"]}
+      }
+    },
+    "file_candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file_path", "score", "evidence_density", "confidence",
+                     "reason_codes", "defect_keys"],
+        "properties": {
+          "file_path": {"type": "string"},
+          "detected_language": {"type": ["string", "null"],
+            "enum": ["python", "rust", "typescript", "svelte", "other", null]},
+          "detected_framework": {"type": ["string", "null"],
+            "enum": ["fastapi", "tauri", "svelte_kit", "other", null]},
+          "score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "evidence_density": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "reason_codes": {"type": "array", "items": {"type": "string"}},
+          "defect_keys": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "function_candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["symbol", "file_path", "score", "confidence", "reason_codes"],
+        "properties": {
+          "symbol": {"type": "string"},
+          "file_path": {"type": "string"},
+          "detected_language": {"type": ["string", "null"],
+            "enum": ["python", "rust", "typescript", "svelte", "other", null]},
+          "score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "reason_codes": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "block_candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slice_id", "file_path", "start_line", "end_line",
+                     "score", "evidence_density", "confidence",
+                     "defect_keys", "support_count", "likely_constructs",
+                     "root_cause_hypothesis", "reason_codes"],
+        "properties": {
+          "slice_id": {"type": "string"},
+          "file_path": {"type": "string"},
+          "detected_language": {"type": ["string", "null"],
+            "enum": ["python", "rust", "typescript", "svelte", "other", null]},
+          "start_line": {"type": "integer", "minimum": 1},
+          "end_line": {"type": "integer", "minimum": 1},
+          "score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "evidence_density": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "defect_keys": {"type": "array", "items": {"type": "string"}},
+          "support_count": {"type": "integer", "minimum": 0},
+          "likely_constructs": {"type": "array", "items": {"type": "string"}},
+          "root_cause_hypothesis": {"type": ["string", "null"],
+            "enum": ["boundary_violation", "null_path", "async_race",
+                     "missing_guard", "serialization_boundary",
+                     "ownership_violation", "reactive_state_mutation",
+                     "other", null]},
+          "reason_codes": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "review_scope": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file_path", "start_line", "end_line"],
+        "properties": {
+          "file_path": {"type": "string"},
+          "start_line": {"type": "integer", "minimum": 1},
+          "end_line": {"type": "integer", "minimum": 1}
+        }
+      }
+    },
+    "patch_scope": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target_id", "file_path", "allow_ranges"],
+        "properties": {
+          "target_id": {"type": "string"},
+          "file_path": {"type": "string"},
+          "allow_ranges": {
+            "type": "array",
+            "items": {"type": "array", "items": {"type": "integer"}, "minItems": 2, "maxItems": 2}
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary_confidence", "evidence_density_mean", "hazard_tier",
+                   "file_candidate_count", "block_candidate_count",
+                   "review_scope_line_count", "patch_scope_present"],
+      "properties": {
+        "summary_confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "evidence_density_mean": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "hazard_tier": {"type": "string",
+          "enum": ["low", "guarded", "elevated", "high", "critical"]},
+        "file_candidate_count": {"type": "integer", "minimum": 0},
+        "block_candidate_count": {"type": "integer", "minimum": 0},
+        "review_scope_line_count": {"type": "integer", "minimum": 0},
+        "patch_scope_present": {"type": "boolean"}
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ranking_policy", "scope_merge_policy", "construct_extraction_policy"],
+      "properties": {
+        "ranking_policy": {"type": "string"},
+        "scope_merge_policy": {"type": "string"},
+        "construct_extraction_policy": {"type": "string"}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "deterministic"],
+      "properties": {
+        "algorithm": {"type": "string"},
+        "deterministic": {"type": "boolean", "const": true}
+      }
+    }
+  }
+}

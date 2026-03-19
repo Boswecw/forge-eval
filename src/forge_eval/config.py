@@ -19,6 +19,7 @@ KNOWN_STAGES = (
     "hazard_map",
     "merge_decision",
     "evidence_bundle",
+    "localization_pack",
 )
 KNOWN_REVIEWER_KINDS = (
     "changed_lines",
@@ -35,6 +36,7 @@ KNOWN_CAPTURE_SELECTION_POLICIES = ("max_hidden",)
 KNOWN_HAZARD_MODEL_VERSIONS = ("hazard_rev1",)
 KNOWN_MERGE_DECISION_MODEL_VERSIONS = ("merge_rev1",)
 KNOWN_EVIDENCE_BUNDLE_MODEL_VERSIONS = ("evidence_bundle_rev1",)
+KNOWN_LOCALIZATION_MODEL_VERSIONS = ("localization_pack_rev1",)
 KNOWN_SEVERITIES = ("low", "medium", "high", "critical")
 KNOWN_CATEGORIES = (
     "correctness",
@@ -109,6 +111,18 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "merge_decision_block_threshold": 0.60,
     "merge_decision_block_on_hazard_blocking_signals": True,
     "evidence_bundle_model_version": "evidence_bundle_rev1",
+    "localization_model_version": "localization_pack_rev1",
+    "localization_max_file_candidates": 10,
+    "localization_max_block_candidates": 20,
+    "localization_max_review_scope_lines": 500,
+    "localization_max_scope_lines_per_file": 150,
+    "localization_round_digits": 6,
+    "localization_ranking_weights": {
+        "support_count": 0.35,
+        "defect_density": 0.25,
+        "hazard_contribution": 0.25,
+        "churn": 0.15,
+    },
     "reviewers": [
         {
             "reviewer_id": "changed_lines.rule.v1",
@@ -396,6 +410,26 @@ def _normalize_reviewers(values: Any) -> list[dict[str, Any]]:
     return normalized
 
 
+def _normalize_localization_ranking_weights(values: Any) -> dict[str, float]:
+    if not isinstance(values, dict):
+        raise ConfigError("localization_ranking_weights must be an object")
+
+    expected = {"support_count", "defect_density", "hazard_contribution", "churn"}
+    unknown = set(values.keys()) - expected
+    if unknown:
+        raise ConfigError("unknown localization_ranking_weights keys", details={"keys": sorted(unknown)})
+
+    merged = copy.deepcopy(DEFAULT_CONFIG["localization_ranking_weights"])
+    for key, value in values.items():
+        merged[key] = _ensure_number(f"localization_ranking_weights.{key}", value, min_value=0.0)
+
+    total = sum(merged.values())
+    if total <= 0.0:
+        raise ConfigError("localization ranking weight sum must be > 0", details={"weights": merged})
+
+    return {k: merged[k] / total for k in sorted(merged.keys())}
+
+
 def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
     cfg: dict[str, Any] = copy.deepcopy(DEFAULT_CONFIG)
     raw = raw or {}
@@ -619,6 +653,39 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
             raise ConfigError("evidence_bundle_model_version must be 'evidence_bundle_rev1'")
         cfg["evidence_bundle_model_version"] = value
 
+    if "localization_model_version" in raw:
+        value = raw["localization_model_version"]
+        if value not in KNOWN_LOCALIZATION_MODEL_VERSIONS:
+            raise ConfigError("localization_model_version must be 'localization_pack_rev1'")
+        cfg["localization_model_version"] = value
+
+    localization_int_keys = {
+        "localization_max_file_candidates": 1,
+        "localization_max_block_candidates": 1,
+        "localization_max_review_scope_lines": 1,
+        "localization_max_scope_lines_per_file": 1,
+    }
+    for key, min_val in localization_int_keys.items():
+        if key not in raw:
+            continue
+        value = raw[key]
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ConfigError("config value must be integer", details={"key": key, "value": value})
+        if value < min_val:
+            raise ConfigError("config value below minimum", details={"key": key, "value": value, "min": min_val})
+        cfg[key] = value
+
+    if "localization_round_digits" in raw:
+        value = raw["localization_round_digits"]
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ConfigError("localization_round_digits must be an integer")
+        if value < 0 or value > 12:
+            raise ConfigError("localization_round_digits must be in [0, 12]", details={"value": value})
+        cfg["localization_round_digits"] = value
+
+    if "localization_ranking_weights" in raw:
+        cfg["localization_ranking_weights"] = _normalize_localization_ranking_weights(raw["localization_ranking_weights"])
+
     if "reviewers" in raw:
         cfg["reviewers"] = _normalize_reviewers(raw["reviewers"])
 
@@ -641,6 +708,8 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
         raise ConfigError("merge_decision stage requires hazard_map stage to be enabled")
     if "evidence_bundle" in enabled_stage_set and "merge_decision" not in enabled_stage_set:
         raise ConfigError("evidence_bundle stage requires merge_decision stage to be enabled")
+    if "localization_pack" in enabled_stage_set and "evidence_bundle" not in enabled_stage_set:
+        raise ConfigError("localization_pack stage requires evidence_bundle stage to be enabled")
 
     return cfg
 

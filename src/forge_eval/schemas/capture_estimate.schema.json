@@ -113,11 +113,14 @@
       "additionalProperties": false,
       "required": [
         "chao1",
+        "chao2",
         "ice",
+        "selection_policy",
         "selected_method",
         "selected_source",
         "selected_hidden",
-        "selected_total"
+        "selected_total",
+        "unavailable_estimators"
       ],
       "properties": {
         "chao1": {
@@ -139,6 +142,45 @@
                 "f2": {"type": "integer", "minimum": 0}
               }
             }
+          }
+        },
+        "chao2": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "available",
+            "hidden_estimate",
+            "total_estimate",
+            "guard_flags",
+            "inputs_used",
+            "reason_unavailable"
+          ],
+          "properties": {
+            "enabled": {"type": "boolean", "const": true},
+            "available": {"type": "boolean"},
+            "hidden_estimate": {"type": ["number", "null"]},
+            "total_estimate": {"type": ["number", "null"]},
+            "guard_flags": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["q2_zero_fallback", "q1_zero_no_signal"],
+              "properties": {
+                "q2_zero_fallback": {"type": "boolean"},
+                "q1_zero_no_signal": {"type": "boolean"}
+              }
+            },
+            "inputs_used": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["q1", "q2", "m"],
+              "properties": {
+                "q1": {"type": "integer", "minimum": 0},
+                "q2": {"type": "integer", "minimum": 0},
+                "m": {"type": "integer", "minimum": 0}
+              }
+            },
+            "reason_unavailable": {"type": ["string", "null"]}
           }
         },
         "ice": {
@@ -179,10 +221,15 @@
             }
           }
         },
+        "selection_policy": {"type": "string", "const": "max_hidden"},
         "selected_method": {"type": "string", "const": "max_hidden"},
-        "selected_source": {"type": "string", "enum": ["chao1", "ice", "tie"]},
+        "selected_source": {"type": "string", "enum": ["chao1", "chao2", "ice", "tie"]},
         "selected_hidden": {"type": "number", "minimum": 0.0},
-        "selected_total": {"type": "number", "minimum": 0.0}
+        "selected_total": {"type": "number", "minimum": 0.0},
+        "unavailable_estimators": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
       }
     },
     "summary": {
@@ -190,9 +237,11 @@
       "additionalProperties": false,
       "required": [
         "observed_defects",
+        "selection_policy",
+        "selected_method",
         "selected_hidden",
         "selected_total",
-        "selected_method",
+        "unavailable_estimators",
         "sparse_data",
         "low_doubleton_support",
         "ice_low_coverage",
@@ -202,9 +251,14 @@
       ],
       "properties": {
         "observed_defects": {"type": "integer", "minimum": 0},
+        "selection_policy": {"type": "string", "const": "max_hidden"},
+        "selected_method": {"type": "string", "enum": ["chao1", "chao2", "ice", "tie"]},
         "selected_hidden": {"type": "number", "minimum": 0.0},
         "selected_total": {"type": "number", "minimum": 0.0},
-        "selected_method": {"type": "string", "const": "max_hidden"},
+        "unavailable_estimators": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
         "sparse_data": {"type": "boolean"},
         "low_doubleton_support": {"type": "boolean"},
         "ice_low_coverage": {"type": "boolean"},

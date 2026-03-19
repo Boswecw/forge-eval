@@ -1,6 +1,8 @@
 .pytest_cache/
 __pycache__/
 *.py[cod]
+.venv/
+*.egg-info/
 
 rust/forge-evidence/target/
 

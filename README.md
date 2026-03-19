@@ -23,7 +23,7 @@ Current implemented packs:
 * **Pack G**: Deterministic reviewer execution + normalized findings + defect identity
 * **Pack H**: Telemetry matrix + reviewer health + tri-state outcomes + `k_eff`
 * **Pack I**: Occupancy snapshot + deterministic conservative `psi_post`
-* **Pack J**: Hidden-defect capture estimate + Chao1/ICE + conservative selected hidden burden
+* **Pack J**: Hidden-defect capture estimate + Chao1/Chao2/ICE + conservative `max_hidden` selected hidden burden
 * **Pack K**: Deterministic conservative hazard mapping (`hazard_map`) from structural risk + telemetry + occupancy + hidden-defect pressure
 * **Pack L**: Deterministic advisory merge decision (`merge_decision`) from `hazard_map`
 * **Pack M**: Deterministic evidence bundle assembly (`evidence_bundle`) from the fixed A-L artifact chain
@@ -123,7 +123,7 @@ risk_heatmap -> context_slices -> review_findings -> telemetry_matrix -> occupan
 * Telemetry uses strict tri-state semantics: `1`, `0`, or `null`.
 * Failed, skipped, or inapplicable reviewers do not count as clean misses.
 * Occupancy uses conservative posterior semantics: usable misses suppress, `null` adds uncertainty.
-* Hidden-defect estimation uses deterministic Chao1/ICE outputs with conservative `max_hidden` selection.
+* Hidden-defect estimation uses deterministic Chao1/Chao2/ICE outputs with conservative `max_hidden` selection.
 
 ## Status
 

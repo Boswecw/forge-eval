@@ -9,6 +9,7 @@ def select_hidden_estimate(
     *,
     observed: int,
     chao1: dict[str, Any],
+    chao2: dict[str, Any],
     ice: dict[str, Any],
     selection_policy: str,
     round_digits: int,
@@ -32,23 +33,39 @@ def select_hidden_estimate(
             details={"round_digits": round_digits},
         )
 
+    candidates: list[tuple[str, float]] = []
+    unavailable_estimators: list[str] = []
+
     chao1_hidden = _required_non_negative_number(chao1, "hidden")
+    candidates.append(("chao1", chao1_hidden))
+
     ice_hidden = _required_non_negative_number(ice, "hidden")
-    if ice_hidden > chao1_hidden:
-        selected_source = "ice"
-        selected_hidden = ice_hidden
-    elif chao1_hidden > ice_hidden:
-        selected_source = "chao1"
-        selected_hidden = chao1_hidden
+    candidates.append(("ice", ice_hidden))
+
+    if chao2.get("available") is True:
+        chao2_hidden = chao2.get("hidden_estimate")
+        if isinstance(chao2_hidden, bool) or not isinstance(chao2_hidden, (int, float)) or float(chao2_hidden) < 0.0:
+            raise StageError(
+                "Chao2 available but hidden_estimate is invalid",
+                stage="capture_estimate",
+                details={"hidden_estimate": chao2_hidden},
+            )
+        candidates.append(("chao2", float(chao2_hidden)))
     else:
-        selected_source = "tie"
-        selected_hidden = chao1_hidden
+        unavailable_estimators.append("chao2")
+
+    max_val = max(v for _, v in candidates)
+    winners = [n for n, v in candidates if v == max_val]
+    selected_source = winners[0] if len(winners) == 1 else "tie"
+    selected_hidden = max_val
 
     return {
+        "selection_policy": selection_policy,
         "selected_method": selection_policy,
         "selected_source": selected_source,
         "selected_hidden": _round_float(selected_hidden, round_digits),
         "selected_total": _round_float(observed + selected_hidden, round_digits),
+        "unavailable_estimators": sorted(unavailable_estimators),
     }
 
 
