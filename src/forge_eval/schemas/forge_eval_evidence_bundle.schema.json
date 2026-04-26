@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "run_id",
+    "repo_path",
+    "base_ref",
+    "head_ref",
+    "base_commit",
+    "head_commit",
+    "input_contract",
+    "artifact_refs",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "const": "v1"},
+    "kind": {"type": "string", "const": "forge_eval_evidence_bundle"},
+    "run_id": {"type": "string", "minLength": 1},
+    "repo_path": {"type": "string", "minLength": 1},
+    "base_ref": {"type": "string", "minLength": 1},
+    "head_ref": {"type": "string", "minLength": 1},
+    "base_commit": {"type": "string", "minLength": 1},
+    "head_commit": {"type": "string", "minLength": 1},
+    "input_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "target_ref_count", "target_refs", "metadata"],
+      "properties": {
+        "schema_version": {"type": "string", "const": "ForgeEvalCentipedeInput.v1"},
+        "target_ref_count": {"type": "integer", "minimum": 1},
+        "target_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["target_id", "file_path", "source_kind"],
+            "properties": {
+              "target_id": {"type": "string", "minLength": 1},
+              "file_path": {"type": "string", "minLength": 1},
+              "source_kind": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        "metadata": {"type": "object"}
+      }
+    },
+    "artifact_refs": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["artifact_kind", "artifact_path", "artifact_hash", "hash_algorithm"],
+        "properties": {
+          "artifact_kind": {"type": "string", "minLength": 1},
+          "artifact_path": {"type": "string", "minLength": 1},
+          "artifact_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "hash_algorithm": {"type": "string", "const": "sha256"}
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapter",
+        "deterministic",
+        "fails_closed_on_missing_target_refs",
+        "hash_algorithm"
+      ],
+      "properties": {
+        "adapter": {"type": "string", "minLength": 1},
+        "deterministic": {"type": "boolean", "const": true},
+        "fails_closed_on_missing_target_refs": {"type": "boolean", "const": true},
+        "hash_algorithm": {"type": "string", "const": "sha256"}
+      }
+    }
+  }
+}

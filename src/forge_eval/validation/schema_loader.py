@@ -17,6 +17,7 @@ SCHEMA_BY_ARTIFACT = {
     "hazard_map": "hazard_map.schema.json",
     "merge_decision": "merge_decision.schema.json",
     "evidence_bundle": "evidence_bundle.schema.json",
+    "forge_eval_evidence_bundle": "forge_eval_evidence_bundle.schema.json",
     "localization_pack": "localization_pack.schema.json",
     "localization_summary": "localization_summary.schema.json",
 }
