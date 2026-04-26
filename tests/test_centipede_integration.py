@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from forge_contract_core.validators.families import validate_family_payload
+from forge_contract_core.validators.role_matrix import check_producer_admitted
 from forge_eval.centipede_runner import run_centipede_pipeline
 from forge_eval.config import load_config
 from forge_eval.errors import StageError, ValidationError
@@ -46,13 +48,18 @@ def _write_centipede_input(path: Path, *, repo: Path, target_refs: list[object])
         "base_ref": "HEAD~1",
         "head_ref": "HEAD",
         "target_refs": target_refs,
-        "metadata": {"test_case": path.stem},
+        "metadata": {
+            "test_case": path.stem,
+            "repository_id": "forge-eval-test-repo",
+            "source_projection_id": f"projection:{path.stem}",
+            "source_fused_bundle_id": f"fused-bundle:{path.stem}",
+        },
     }
     path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
     return path
 
 
-def test_centipede_pipeline_writes_minimum_phase_01_artifacts(tmp_path: Path) -> None:
+def test_centipede_pipeline_writes_minimum_phase_03_artifacts(tmp_path: Path) -> None:
     repo = _make_two_commit_repo(tmp_path)
     input_path = _write_centipede_input(
         tmp_path / "centipede_input.json",
@@ -72,10 +79,18 @@ def test_centipede_pipeline_writes_minimum_phase_01_artifacts(tmp_path: Path) ->
         "risk_heatmap.json",
         "context_slices.json",
         "forge_eval_evidence_bundle.json",
+        "forge_eval_evidence_bundle.contract.json",
     ]
+    assert result["contract_validation"] == {
+        "producer_repo_id": "forge-eval",
+        "artifact_family": "forge_eval_evidence_bundle",
+        "artifact_version": 1,
+        "validation_state": "passed",
+    }
     assert sorted(path.name for path in out.iterdir()) == [
         "config.resolved.json",
         "context_slices.json",
+        "forge_eval_evidence_bundle.contract.json",
         "forge_eval_evidence_bundle.json",
         "risk_heatmap.json",
     ]
@@ -95,6 +110,30 @@ def test_centipede_pipeline_writes_minimum_phase_01_artifacts(tmp_path: Path) ->
     }
     assert all(ref["hash_algorithm"] == "sha256" for ref in bundle["artifact_refs"])
     assert all(len(ref["artifact_hash"]) == 64 for ref in bundle["artifact_refs"])
+
+    contract_payload = json.loads((out / "forge_eval_evidence_bundle.contract.json").read_text(encoding="utf-8"))
+    assert contract_payload["schema_version"] == "forge_eval.evidence_bundle.v1"
+    assert contract_payload["forge_eval_run_id"] == result["run_id"]
+    assert contract_payload["source_projection_id"] == "projection:centipede_input"
+    assert contract_payload["source_fused_bundle_id"] == "fused-bundle:centipede_input"
+    assert contract_payload["repository_id"] == "forge-eval-test-repo"
+    assert contract_payload["base_ref"] == result["base_commit"]
+    assert contract_payload["head_ref"] == result["head_commit"]
+    assert contract_payload["deterministic"] is True
+    assert contract_payload["validation_state"] == "passed"
+    assert "forge_contract_core.family_payload:passed" in contract_payload["validation_refs"]
+    assert "forge_contract_core.role_matrix:passed" in contract_payload["validation_refs"]
+    assert {ref["artifact_kind"] for ref in contract_payload["artifact_refs"]} == {
+        "config_resolved",
+        "risk_heatmap",
+        "context_slices",
+        "forge_eval_evidence_bundle",
+    }
+    assert all("hash_algorithm" not in ref for ref in contract_payload["artifact_refs"])
+    assert all(ref["artifact_hash"].startswith("sha256:") for ref in contract_payload["artifact_refs"])
+
+    check_producer_admitted("forge-eval", "forge_eval_evidence_bundle")
+    validate_family_payload("forge_eval_evidence_bundle", 1, contract_payload)
 
 
 def test_centipede_pipeline_fails_closed_when_target_ref_not_in_diff(tmp_path: Path) -> None:

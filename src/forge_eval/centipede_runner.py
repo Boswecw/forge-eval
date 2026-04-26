@@ -10,6 +10,10 @@ from forge_eval.adapters.centipede_input import (
     CentipedeInput,
     load_centipede_input,
 )
+from forge_eval.contracts.evaluation_spine import (
+    build_forge_eval_evidence_bundle_payload,
+    validate_forge_eval_evidence_bundle_payload,
+)
 from forge_eval.errors import StageError
 from forge_eval.services.git_diff import resolve_commit
 from forge_eval.stage_runner import _compute_run_id, stable_json_dumps, validate_artifacts_directory, write_json_file
@@ -21,6 +25,7 @@ from forge_eval.validation.validate_artifact import validate_instance
 CENTIPEDE_ENABLED_STAGES = ["risk_heatmap", "context_slices"]
 CENTIPEDE_BUNDLE_KIND = "forge_eval_evidence_bundle"
 CENTIPEDE_BUNDLE_SCHEMA_VERSION = "v1"
+CENTIPEDE_CONTRACT_PAYLOAD_FILENAME = "forge_eval_evidence_bundle.contract.json"
 
 
 def _sha256_file(path: Path) -> str:
@@ -126,10 +131,12 @@ def _build_forge_eval_evidence_bundle(
         },
         "artifact_refs": artifact_refs,
         "provenance": {
-            "adapter": "centipede_to_forge_eval_phase_01",
+            "adapter": "centipede_to_forge_eval_phase_03_contract_core_bridge",
             "deterministic": True,
             "fails_closed_on_missing_target_refs": True,
             "hash_algorithm": "sha256",
+            "contract_family": "forge_eval_evidence_bundle",
+            "contract_version": 1,
         },
     }
 
@@ -212,9 +219,30 @@ def run_centipede_pipeline(
         schemas[CENTIPEDE_BUNDLE_KIND],
         artifact_kind=CENTIPEDE_BUNDLE_KIND,
     )
-    write_json_file(out / "forge_eval_evidence_bundle.json", bundle_artifact)
+    local_bundle_path = out / "forge_eval_evidence_bundle.json"
+    write_json_file(local_bundle_path, bundle_artifact)
 
     validation_result = validate_artifacts_directory(artifacts_dir=out, schema_dir=schema_dir)
+
+    contract_payload = build_forge_eval_evidence_bundle_payload(
+        local_bundle=bundle_artifact,
+        input_contract=input_contract,
+        repo=repo,
+        base_commit=base_commit,
+        head_commit=head_commit,
+        local_bundle_hash=_sha256_file(local_bundle_path),
+        validation_refs=["forge_eval.local_artifact_validation:passed"],
+    )
+    contract_validation_result = validate_forge_eval_evidence_bundle_payload(contract_payload)
+    contract_payload["validation_refs"] = sorted(
+        set(contract_payload.get("validation_refs", []))
+        | {
+            "forge_contract_core.role_matrix:passed",
+            "forge_contract_core.family_payload:passed",
+        }
+    )
+    contract_validation_result = validate_forge_eval_evidence_bundle_payload(contract_payload)
+    write_json_file(out / CENTIPEDE_CONTRACT_PAYLOAD_FILENAME, contract_payload)
 
     return {
         "run_id": run_id,
@@ -225,6 +253,8 @@ def run_centipede_pipeline(
             "risk_heatmap.json",
             "context_slices.json",
             "forge_eval_evidence_bundle.json",
+            CENTIPEDE_CONTRACT_PAYLOAD_FILENAME,
         ],
         "validation": validation_result,
+        "contract_validation": contract_validation_result,
     }
