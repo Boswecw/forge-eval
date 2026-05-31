@@ -35,12 +35,17 @@ several would block a quality gate, and a couple of unused-variable findings poi
 | 5 | Med  | Format gate | `ruff format --check` wants to reformat **76 files**; `cargo fmt --check` fails on 5 |
 | 6 | Low  | Robustness | Broad `except Exception` in a "fail-closed" pipeline (a few sites) |
 | 7 | Low  | Optional dep | `lineage/emitter.py` imports external `forge_lineage_sdk` not in `pyproject` |
-| 8 | Info | Tooling | No `[tool.ruff]` / `[tool.mypy]` config; lint/format rules are implicit |
+| 8 | Med  | CI | **No `.github/` or any CI configuration exists** — nothing enforces the gates above |
+| 9 | Med  | Tests | `pytest` **aborts with 19 collection errors** in a clean 3.11 checkout |
+| 10 | Info | Tooling | No `[tool.ruff]` / `[tool.mypy]` config; lint/format rules are implicit |
+| 11 | Low  | Efficiency | `slice_extractor.py:247` sorts a set only to take its length |
 
-> Two checks I was unable to finish verifying this session due to a tool-output
-> stall: (a) a full green `pytest` run, and (b) whether a `.github/` CI workflow
-> exists. Both are called out inline below as **unverified** so they can be
-> confirmed in a follow-up.
+> **Independent deep review of the statistical/determinism core** (Chao1/Chao2/ICE
+> estimators, capture/occupancy/hazard math, `git_diff`, `finding_normalizer`,
+> `lineage/emitter`, schema validation) found **no correctness or determinism
+> defects** — division-by-zero guards, NaN/inf checks, and stable sorting are all
+> present and correct. The substantive logic is in good shape; the findings below are
+> tooling, packaging, and hygiene.
 
 ---
 
@@ -124,6 +129,23 @@ The code isn't malformed — it just hasn't been run through the formatters, so 
 > Note: `cargo test` **passes** (5 + 5 tests) and `cargo clippy --all-targets`
 > is **clean** (exit 0). The Rust side is in good shape apart from formatting.
 
+### 8. No CI configuration at all
+There is **no `.github/` directory** (nor any other CI config) in the repo. Despite
+the README and `reports/` describing extensive verification, nothing in version
+control automatically runs `pytest`, `ruff`, `cargo test`, or `cargo clippy` on a
+push/PR. Given findings #1 and #5 are currently red, adding even a minimal CI workflow
+(lint + format + py tests + cargo test/clippy) would stop further drift.
+
+### 9. `pytest` aborts during collection (19 errors)
+In a clean checkout on this environment (Python 3.11.15, package not installed),
+`PYTHONPATH=src pytest` does not run — it stops with **"Interrupted: 19 errors during
+collection"** across most stage test modules. I could not capture the underlying
+tracebacks this session, but the probable causes are exactly the packaging gaps in
+#3/#4/#7: the `>=3.12` requirement, undeclared test deps, and/or the undeclared
+`forge_lineage_sdk` import being pulled in at collection time. Net effect: the suite is
+not runnable from packaging metadata + a stock interpreter, which compounds #8. Confirm
+by running on Python 3.12 with the test deps installed and capture the real errors.
+
 ---
 
 ## Low / Info
@@ -142,11 +164,16 @@ each re-raises a structured `ForgeEvalError` or is deliberately best-effort
 dependency declared as an extra; otherwise it's an undeclared hard dependency that will
 ImportError outside the dev workspace.
 
-### 8. No linter/formatter config in `pyproject.toml`
+### 10. No linter/formatter config in `pyproject.toml`
 There's no `[tool.ruff]` (rule selection, line length, per-file-ignores for tests) or
 `[tool.mypy]` section. Lint results therefore depend on ruff's defaults and whatever
 version a contributor has. Pin tool config so the gate is reproducible — and consider
 `per-file-ignores` so test files don't trip F401 on intentional imports.
+
+### 11. Minor inefficiency
+`services/slice_extractor.py:247` computes `len(sorted(set(included_targets)))` — the
+`sorted()` is wasted work since only the count is used; `len(set(included_targets))` is
+equivalent. (No behavioral effect; noted for completeness.)
 
 ---
 
@@ -163,6 +190,10 @@ version a contributor has. Pin tool config so the gate is reproducible — and c
   ranges, normalizes weights to a unit sum, and validates stage-dependency ordering.
 - **Rust crate:** clean clippy, passing tests, idempotent canonicalization with an
   explicit non-finite-float guard.
+- **Statistical core verified clean:** an independent deep pass over Chao1/Chao2/ICE,
+  capture/occupancy/hazard math, and `finding_normalizer` found correct bias-corrected
+  formulas, complete division-by-zero / NaN / inf guards, consistent `round_digits`
+  bounds, and stable (sorted) ordering everywhere output order matters.
 
 ## Recommended order
 1. `ruff check --fix .` then hand-fix the remaining F841s — but for the four in
@@ -172,3 +203,5 @@ version a contributor has. Pin tool config so the gate is reproducible — and c
 3. Add a `dev`/`test` dependency extra and `[tool.ruff]` config; reconcile the
    Python-version floor (#3, #4, #8).
 4. Declare/guard `forge_lineage_sdk` and tighten broad excepts (#6, #7).
+5. Get `pytest` green on 3.12, then add a CI workflow that runs lint + format + py
+   tests + `cargo test`/`clippy` so the gates can't silently regress (#8, #9).
