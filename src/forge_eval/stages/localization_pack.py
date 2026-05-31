@@ -39,7 +39,10 @@ def _validate_upstream(
             raise StageError(
                 f"localization_pack upstream artifact kind mismatch for {name}",
                 stage="localization_pack",
-                details={"expected_kind": expected_kind, "actual_kind": artifact.get("kind")},
+                details={
+                    "expected_kind": expected_kind,
+                    "actual_kind": artifact.get("kind"),
+                },
             )
 
 
@@ -52,7 +55,9 @@ def _build_source_artifacts_refs(
         "context_slices_ref": "context_slices.json",
         "review_findings_ref": "review_findings.json",
         "telemetry_matrix_ref": "telemetry_matrix.json",
-        "occupancy_snapshot_ref": "occupancy_snapshot.json" if occupancy_snapshot_artifact is not None else None,
+        "occupancy_snapshot_ref": "occupancy_snapshot.json"
+        if occupancy_snapshot_artifact is not None
+        else None,
         "hazard_map_ref": "hazard_map.json",
         "patch_targets_ref": None,
         "concernspans_ref": None,
@@ -108,11 +113,15 @@ def run_stage(
     round_digits = config.get("localization_round_digits", 6)
 
     block_confidences = [b["confidence"] for b in block_candidates]
-    summary_confidence = round(min(block_confidences), round_digits) if block_confidences else 0.0
+    summary_confidence = (
+        round(min(block_confidences), round_digits) if block_confidences else 0.0
+    )
     evidence_densities = [b["evidence_density"] for b in block_candidates]
-    evidence_density_mean = round(
-        sum(evidence_densities) / len(evidence_densities), round_digits
-    ) if evidence_densities else 0.0
+    evidence_density_mean = (
+        round(sum(evidence_densities) / len(evidence_densities), round_digits)
+        if evidence_densities
+        else 0.0
+    )
 
     hazard_summary = hazard_map_artifact.get("summary", {})
     hazard_tier = hazard_summary.get("hazard_tier", "low")
@@ -120,17 +129,6 @@ def run_stage(
     review_scope_line_count = sum(
         entry["end_line"] - entry["start_line"] + 1 for entry in review_scope
     )
-
-    reason_code_counts: dict[str, int] = {}
-    for bc in block_candidates:
-        for rc in bc.get("reason_codes", []):
-            reason_code_counts[rc] = reason_code_counts.get(rc, 0) + 1
-    top_reason_codes = sorted(
-        reason_code_counts.keys(),
-        key=lambda rc: (-reason_code_counts[rc], rc),
-    )
-
-    top_files = [fc["file_path"] for fc in file_candidates[:3]]
 
     logger.info(
         "localization_pack telemetry: "

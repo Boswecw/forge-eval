@@ -213,12 +213,16 @@ class NullLineageEmitter:
     """
 
     def emit_run_and_bundle(self, **_kwargs: Any) -> LineageEmissionStatus:
-        return LineageEmissionStatus(outcome="lineage_missing", error="emitter_disabled")
+        return LineageEmissionStatus(
+            outcome="lineage_missing", error="emitter_disabled"
+        )
 
 
 def _bundle_identity(evidence_bundle: dict[str, Any]) -> tuple[str, str]:
     """Derive a stable id and content hash from the evidence-bundle artifact."""
-    canonical = json.dumps(evidence_bundle, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    canonical = json.dumps(
+        evidence_bundle, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
     digest = hashlib.sha256(canonical).hexdigest()
     bundle_id = (
         evidence_bundle.get("bundle_id")

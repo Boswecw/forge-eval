@@ -521,7 +521,9 @@ def test_capture_estimate_emits_estimators_counts_and_selection() -> None:
     assert out["summary"]["unavailable_estimators"] == []
 
 
-def test_capture_estimate_singleton_heavy_inflates_hidden_more_than_repeat_supported() -> None:
+def test_capture_estimate_singleton_heavy_inflates_hidden_more_than_repeat_supported() -> (
+    None
+):
     cfg = normalize_config({})
     repeat_supported = run_stage(
         repo_path=Path("/tmp/repo"),
@@ -546,7 +548,10 @@ def test_capture_estimate_singleton_heavy_inflates_hidden_more_than_repeat_suppo
     assert singleton_heavy["counts"]["f2"] == 0
     assert singleton_heavy["estimators"]["chao1"]["guard_applied"] is True
     assert singleton_heavy["estimators"]["ice"]["guard_applied"] is True
-    assert singleton_heavy["estimators"]["selected_hidden"] > repeat_supported["estimators"]["selected_hidden"]
+    assert (
+        singleton_heavy["estimators"]["selected_hidden"]
+        > repeat_supported["estimators"]["selected_hidden"]
+    )
     assert singleton_heavy["summary"]["low_doubleton_support"] is True
     assert singleton_heavy["summary"]["sparse_data"] is True
 
@@ -663,8 +668,12 @@ def test_selection_policy_chao2_wins() -> None:
     chao2 = {"available": True, "hidden_estimate": 3.0, "total_estimate": 7.0}
     ice = {"hidden": 2.0, "total": 6.0, "observed": 4}
     sel = select_hidden_estimate(
-        observed=4, chao1=chao1, chao2=chao2, ice=ice,
-        selection_policy="max_hidden", round_digits=6,
+        observed=4,
+        chao1=chao1,
+        chao2=chao2,
+        ice=ice,
+        selection_policy="max_hidden",
+        round_digits=6,
     )
     assert sel["selected_source"] == "chao2"
     assert sel["selected_hidden"] == 3.0
@@ -679,8 +688,12 @@ def test_selection_policy_chao1_wins() -> None:
     chao2 = {"available": True, "hidden_estimate": 2.0, "total_estimate": 6.0}
     ice = {"hidden": 3.0, "total": 7.0, "observed": 4}
     sel = select_hidden_estimate(
-        observed=4, chao1=chao1, chao2=chao2, ice=ice,
-        selection_policy="max_hidden", round_digits=6,
+        observed=4,
+        chao1=chao1,
+        chao2=chao2,
+        ice=ice,
+        selection_policy="max_hidden",
+        round_digits=6,
     )
     assert sel["selected_source"] == "chao1"
     assert sel["selected_hidden"] == 5.0
@@ -712,7 +725,9 @@ def test_chao2_schema_validation_accepts_valid() -> None:
     """Test 8: Schema validation — revised capture_estimate.json validates against schema."""
     schemas = load_all_schemas()
     out = _run_stage_default()
-    validate_instance(out, schemas["capture_estimate"], artifact_kind="capture_estimate")
+    validate_instance(
+        out, schemas["capture_estimate"], artifact_kind="capture_estimate"
+    )
 
 
 def test_chao2_schema_validation_rejects_malformed() -> None:
@@ -722,7 +737,9 @@ def test_chao2_schema_validation_rejects_malformed() -> None:
     broken = copy.deepcopy(out)
     del broken["estimators"]["chao2"]["guard_flags"]
     with pytest.raises(ValidationError):
-        validate_instance(broken, schemas["capture_estimate"], artifact_kind="capture_estimate")
+        validate_instance(
+            broken, schemas["capture_estimate"], artifact_kind="capture_estimate"
+        )
 
 
 def test_chao2_determinism() -> None:

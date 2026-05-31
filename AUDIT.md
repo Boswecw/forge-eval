@@ -205,3 +205,31 @@ equivalent. (No behavioral effect; noted for completeness.)
 4. Declare/guard `forge_lineage_sdk` and tighten broad excepts (#6, #7).
 5. Get `pytest` green on 3.12, then add a CI workflow that runs lint + format + py
    tests + `cargo test`/`clippy` so the gates can't silently regress (#8, #9).
+
+---
+
+## Resolution log (2026-05-31)
+
+Applied on branch `claude/repo-audit-eg7AI`:
+
+- **#1 lint** — `ruff check .` now passes (0 errors). 13 unused imports auto-fixed; 4
+  unused locals removed by hand (see #2).
+- **#2 unused locals** — investigated, not droppable "logic": hazard rows carry no line
+  field, so `_hazard_for_slice` correctly maxes over the whole file (removed the dead
+  `start`/`end`, added a clarifying comment); the `localization_pack` summary schema is
+  `additionalProperties: false`, so `top_reason_codes`/`top_files` could not be emitted
+  (removed). `detect_framework`'s `lang` was genuinely unused (removed).
+- **#5 format** — `ruff format .` (76 files) and `cargo fmt` (5 files) applied; both
+  `--check` gates now pass.
+- **#9 tests — corrected** — the "19 collection errors" was a Python-3.11/uninstalled
+  artifact. On **Python 3.12 with the package installed, 166 tests pass, 0 fail.** Only
+  **3** modules fail to collect, all from genuinely-absent sibling repos:
+  `tests/lineage/test_forge_eval_emitter.py` (`fastapi`),
+  `tests/test_centipede_integration.py` (`forge_contract_core`), and
+  `tests/test_localization_e2e.py` (hardcoded `/home/NeuroForge/...` path). The 10
+  integration "failures" seen earlier were an environment artifact (container-global
+  commit-signing failing inside the tests' temp repos), not code defects.
+- **#11 efficiency** — left as-is (cosmetic); `cargo test`/`clippy` remain clean.
+
+Still open (not changed this pass): #3/#4 packaging (python floor, test/dev deps),
+#6 broad excepts, #7 undeclared `forge_lineage_sdk`, #8 no CI, #10 no tool config.

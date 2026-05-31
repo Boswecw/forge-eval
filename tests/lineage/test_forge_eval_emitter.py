@@ -62,7 +62,10 @@ def _evidence_bundle(*, run_id: str = "fe-run-001") -> dict:
         "kind": "evidence_bundle",
         "bundle_id": f"bundle:{run_id}",
         "payload_hash": "a" * 64,
-        "manifest": {"bundle_hash": "a" * 64, "artifacts": [{"kind": "risk_heatmap"}, {"kind": "merge_decision"}]},
+        "manifest": {
+            "bundle_hash": "a" * 64,
+            "artifacts": [{"kind": "risk_heatmap"}, {"kind": "merge_decision"}],
+        },
         "summary": {"decision": "approve"},
     }
 

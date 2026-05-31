@@ -91,7 +91,12 @@ VALID_EXAMPLES = {
             "reviewer_failed_count": 0,
             "reviewer_skipped_count": 0,
             "finding_count": 1,
-            "finding_count_by_severity": {"low": 0, "medium": 1, "high": 0, "critical": 0},
+            "finding_count_by_severity": {
+                "low": 0,
+                "medium": 1,
+                "high": 0,
+                "critical": 0,
+            },
         },
         "provenance": {
             "algorithm": "reviewer_execution_v1",
@@ -410,7 +415,13 @@ VALID_EXAMPLES = {
                 "structural_risk_uplift": 0.0945,
                 "support_uplift": 0.0525,
                 "hazard_contribution": 0.596225,
-                "hazard_flags": ["high_severity", "high_structural_risk", "high_residual_occupancy", "null_uncertainty", "cross_reviewer_support"],
+                "hazard_flags": [
+                    "high_severity",
+                    "high_structural_risk",
+                    "high_residual_occupancy",
+                    "null_uncertainty",
+                    "cross_reviewer_support",
+                ],
             }
         ],
         "model": {
@@ -697,7 +708,15 @@ def test_schema_accepts_valid_examples(kind: str) -> None:
 def test_schema_rejects_invalid_examples(kind: str) -> None:
     schemas = load_all_schemas()
     broken = copy.deepcopy(VALID_EXAMPLES[kind])
-    if kind in {"review_findings", "telemetry_matrix", "occupancy_snapshot", "capture_estimate", "hazard_map", "merge_decision", "evidence_bundle"}:
+    if kind in {
+        "review_findings",
+        "telemetry_matrix",
+        "occupancy_snapshot",
+        "capture_estimate",
+        "hazard_map",
+        "merge_decision",
+        "evidence_bundle",
+    }:
         broken["run"].pop("run_id", None)
     else:
         broken.pop("run_id", None)

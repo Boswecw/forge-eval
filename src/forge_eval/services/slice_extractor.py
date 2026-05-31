@@ -7,7 +7,6 @@ from typing import Iterable
 
 from forge_eval.errors import StageError
 from forge_eval.services.git_diff import (
-    ChangedFile,
     file_content_at_ref,
     list_changed_files,
     numstat_for_file,
@@ -53,12 +52,18 @@ def parse_unified_diff_hunks(diff_text: str) -> list[ChangedHunk]:
 
         if count == 0:
             # Deletion-only hunk in head context maps to insertion point line.
-            hunks.append(ChangedHunk(start_line=start_line, end_line=start_line, changed_line_count=0))
+            hunks.append(
+                ChangedHunk(
+                    start_line=start_line, end_line=start_line, changed_line_count=0
+                )
+            )
             continue
 
         end_line = start_line + count - 1
         hunks.append(
-            ChangedHunk(start_line=start_line, end_line=end_line, changed_line_count=count)
+            ChangedHunk(
+                start_line=start_line, end_line=end_line, changed_line_count=count
+            )
         )
 
     return hunks
@@ -109,7 +114,9 @@ def _extract_file_slices(
     head_ref: str,
     config: dict[str, object],
 ) -> list[dict[str, object]]:
-    added, deleted, is_binary = numstat_for_file(repo_path, base_ref, head_ref, file_path)
+    added, deleted, is_binary = numstat_for_file(
+        repo_path, base_ref, head_ref, file_path
+    )
     if is_binary:
         policy = str(config["binary_file_policy"])
         if policy == "ignore":
@@ -226,7 +233,9 @@ def extract_context_slices(
             included_targets.append(candidate_path)
         slices.extend(file_slices)
 
-    slices.sort(key=lambda s: (str(s["file_path"]), int(s["start_line"]), int(s["end_line"])))
+    slices.sort(
+        key=lambda s: (str(s["file_path"]), int(s["start_line"]), int(s["end_line"]))
+    )
 
     running_total = 0
     for slc in slices:

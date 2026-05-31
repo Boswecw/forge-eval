@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import copy
-import json
 import subprocess
 from pathlib import Path
 
@@ -121,7 +120,9 @@ def test_single_file_two_nearby_hunks_merge_to_one_slice(tmp_path: Path) -> None
     _write_lines(file_path, lines)
     _commit_all(repo, "head")
 
-    artifact = _artifact_for(repo, config_overrides={"context_radius_lines": 1, "merge_gap_lines": 1})
+    artifact = _artifact_for(
+        repo, config_overrides={"context_radius_lines": 1, "merge_gap_lines": 1}
+    )
     assert artifact["summary"]["slice_count"] == 1
     slc = artifact["slices"][0]
     assert slc["start_line"] == 4
@@ -237,8 +238,12 @@ def test_context_slices_schema_validation_and_repeatability(tmp_path: Path) -> N
     _write_lines(file_path, lines)
     _commit_all(repo, "head")
 
-    first = _artifact_for(repo, run_id="repeat", config_overrides={"context_radius_lines": 1})
-    second = _artifact_for(repo, run_id="repeat", config_overrides={"context_radius_lines": 1})
+    first = _artifact_for(
+        repo, run_id="repeat", config_overrides={"context_radius_lines": 1}
+    )
+    second = _artifact_for(
+        repo, run_id="repeat", config_overrides={"context_radius_lines": 1}
+    )
     assert stable_json_dumps(first) == stable_json_dumps(second)
 
     schema = load_schema("context_slices")
