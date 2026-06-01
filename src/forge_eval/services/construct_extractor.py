@@ -4,7 +4,6 @@ import os
 import re
 from typing import Any
 
-
 LANGUAGE_MAP: dict[str, str] = {
     ".py": "python",
     ".rs": "rust",

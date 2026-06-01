@@ -5,11 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from forge_eval.evidence_cli import EvidenceCliError
 from forge_eval.errors import StageError
+from forge_eval.evidence_cli import EvidenceCliError
 from forge_eval.stages.evidence_bundle import run_stage
 from tests._evidence_test_helper import write_fake_evidence_binary
-
 
 REQUIRED_FILES = {
     "config.resolved.json": {

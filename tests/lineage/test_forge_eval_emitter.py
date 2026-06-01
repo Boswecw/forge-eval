@@ -13,7 +13,6 @@ from pathlib import Path
 
 import pytest
 
-
 _REPO_ROOT = Path(__file__).resolve().parents[5]
 _DATAFORGE_LOCAL = _REPO_ROOT / "dataforge-Local"
 _SDK_PATH = _REPO_ROOT / "contracts" / "forge_lineage" / "sdk"
@@ -23,8 +22,8 @@ for p in (_SDK_PATH, _DATAFORGE_LOCAL):
 
 from fastapi import FastAPI  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
-
 from forge_lineage_sdk import LineageClient  # noqa: E402
+
 from forge_eval.lineage.emitter import (  # noqa: E402
     ForgeEvalLineageEmitter,
     NullLineageEmitter,

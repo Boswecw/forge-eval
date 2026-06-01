@@ -1,16 +1,15 @@
 from __future__ import annotations
 
+import copy
+import json
 from pathlib import Path
 
 import pytest
 
-import copy
-import json
-
 from forge_eval.config import normalize_config
 from forge_eval.errors import StageError, ValidationError
-from forge_eval.services.chao2 import estimate_chao2
 from forge_eval.services.capture_selection import select_hidden_estimate
+from forge_eval.services.chao2 import estimate_chao2
 from forge_eval.stages.capture_estimate import run_stage
 from forge_eval.validation.schema_loader import load_all_schemas
 from forge_eval.validation.validate_artifact import validate_instance

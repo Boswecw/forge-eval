@@ -11,7 +11,6 @@ from forge_eval.services.localization_ranker import rank_candidates
 from forge_eval.services.review_scope_compiler import compile_review_scope
 from forge_eval.stages.localization_pack import run_stage
 
-
 SCHEMA_DIR = Path(__file__).resolve().parent.parent / "src" / "forge_eval" / "schemas"
 
 

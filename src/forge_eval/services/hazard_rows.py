@@ -5,7 +5,6 @@ from typing import Any
 from forge_eval.errors import StageError
 from forge_eval.services.hazard_model import clamp_unit, round_float, severity_weight
 
-
 ROW_HIGH_RISK_THRESHOLD = 0.75
 ROW_HIGH_OCCUPANCY_THRESHOLD = 0.80
 

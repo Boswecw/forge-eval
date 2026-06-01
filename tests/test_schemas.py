@@ -8,7 +8,6 @@ from forge_eval.errors import ValidationError
 from forge_eval.validation.schema_loader import SCHEMA_BY_ARTIFACT, load_all_schemas
 from forge_eval.validation.validate_artifact import validate_instance
 
-
 VALID_EXAMPLES = {
     "risk_heatmap": {
         "schema_version": "v1",

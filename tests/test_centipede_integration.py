@@ -5,9 +5,9 @@ import subprocess
 from pathlib import Path
 
 import pytest
-
 from forge_contract_core.validators.families import validate_family_payload
 from forge_contract_core.validators.role_matrix import check_producer_admitted
+
 from forge_eval.centipede_runner import run_centipede_pipeline
 from forge_eval.config import load_config
 from forge_eval.errors import StageError, ValidationError

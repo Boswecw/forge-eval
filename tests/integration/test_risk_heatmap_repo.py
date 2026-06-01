@@ -11,7 +11,6 @@ from forge_eval.stages.risk_heatmap import run_stage
 from forge_eval.validation.schema_loader import load_schema
 from forge_eval.validation.validate_artifact import validate_instance
 
-
 pytestmark = pytest.mark.integration
 
 

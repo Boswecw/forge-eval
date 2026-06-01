@@ -4,7 +4,6 @@ from typing import Iterable
 
 from forge_eval.errors import StageError
 
-
 LineRange = tuple[int, int]
 
 

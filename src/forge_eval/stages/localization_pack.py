@@ -84,10 +84,10 @@ def run_stage(
         hazard_map_artifact=hazard_map_artifact,
     )
 
-    from forge_eval.services.localization_ranker import rank_candidates
-    from forge_eval.services.review_scope_compiler import compile_review_scope
     from forge_eval.services.construct_extractor import enrich_block_candidates
+    from forge_eval.services.localization_ranker import rank_candidates
     from forge_eval.services.patch_scope_builder import build_patch_scope
+    from forge_eval.services.review_scope_compiler import compile_review_scope
 
     source_refs = _build_source_artifacts_refs(
         occupancy_snapshot_artifact=occupancy_snapshot_artifact,

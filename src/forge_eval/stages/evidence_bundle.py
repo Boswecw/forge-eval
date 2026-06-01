@@ -3,15 +3,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from forge_eval.evidence_cli import EvidenceCli
 from forge_eval.errors import StageError
+from forge_eval.evidence_cli import EvidenceCli
 from forge_eval.services.evidence_bundle_manifest import (
     build_evidence_manifest,
     required_bundle_artifacts,
 )
 from forge_eval.services.evidence_bundle_model import load_evidence_bundle_model
 from forge_eval.services.evidence_bundle_summary import build_evidence_bundle_summary
-
 
 _REQUIRED_KINDS = {
     "risk_heatmap": "risk_heatmap",

@@ -6,16 +6,16 @@ from pathlib import Path
 from typing import Any
 
 from forge_eval.errors import StageError, ValidationError
-from forge_eval.stages.capture_estimate import run_stage as run_capture_estimate_stage
-from forge_eval.stages.evidence_bundle import run_stage as run_evidence_bundle_stage
-from forge_eval.stages.localization_pack import run_stage as run_localization_pack_stage
-from forge_eval.stages.hazard_map import run_stage as run_hazard_map_stage
-from forge_eval.stages.merge_decision import run_stage as run_merge_decision_stage
 from forge_eval.services.git_diff import resolve_commit
+from forge_eval.stages.capture_estimate import run_stage as run_capture_estimate_stage
+from forge_eval.stages.context_slices import run_stage as run_context_slices_stage
+from forge_eval.stages.evidence_bundle import run_stage as run_evidence_bundle_stage
+from forge_eval.stages.hazard_map import run_stage as run_hazard_map_stage
+from forge_eval.stages.localization_pack import run_stage as run_localization_pack_stage
+from forge_eval.stages.merge_decision import run_stage as run_merge_decision_stage
 from forge_eval.stages.occupancy_snapshot import (
     run_stage as run_occupancy_snapshot_stage,
 )
-from forge_eval.stages.context_slices import run_stage as run_context_slices_stage
 from forge_eval.stages.reviewer_execution import (
     run_stage as run_reviewer_execution_stage,
 )

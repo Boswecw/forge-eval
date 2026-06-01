@@ -4,7 +4,6 @@ from typing import Any
 
 from forge_eval.errors import StageError
 
-
 BLOCK_REASON_ORDER = (
     "HAZARD_BLOCKING_SIGNAL_PRESENT",
     "HAZARD_TIER_CRITICAL",

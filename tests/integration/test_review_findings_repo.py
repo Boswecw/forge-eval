@@ -11,7 +11,6 @@ from forge_eval.validation.schema_loader import load_schema
 from forge_eval.validation.validate_artifact import load_json_file, validate_instance
 from tests._evidence_test_helper import write_fake_evidence_binary
 
-
 pytestmark = pytest.mark.integration
 
 

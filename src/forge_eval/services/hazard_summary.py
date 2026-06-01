@@ -5,7 +5,6 @@ from typing import Any
 from forge_eval.errors import StageError
 from forge_eval.services.hazard_model import clamp_unit, map_hazard_tier, round_float
 
-
 UNCERTAINTY_FLAG_KEYS = (
     "sparse_capture_data",
     "low_doubleton_support",

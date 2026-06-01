@@ -233,3 +233,38 @@ Applied on branch `claude/repo-audit-eg7AI`:
 
 Still open (not changed this pass): #3/#4 packaging (python floor, test/dev deps),
 #6 broad excepts, #7 undeclared `forge_lineage_sdk`, #8 no CI, #10 no tool config.
+
+## Resolution log (2026-06-01) — open findings
+
+Applied on branch `claude/repo-audit-eg7AI`:
+
+- **#3 python floor** — `requires-python = ">=3.12"` was already correct; the gap
+  was enforcement, now closed by CI (#8) running the suite on 3.12.
+- **#4 test/dev deps** — added `[project.optional-dependencies] dev` (`pytest`,
+  `ruff`); CI installs `.[dev]`.
+- **#6 broad except — partial** — `risk_analysis` now catches the specific
+  `GitError` from `file_content_at_ref` (it was a genuinely over-broad catch). The
+  other three sites are **intentional fail-closed/isolation boundaries** and were
+  left broad pending an explicit decision: `evaluation_spine` (lazily imports
+  `forge_contract_core`, must not couple to its exception hierarchy),
+  `reviewers/adapters` (plugin-isolation, routes any reviewer failure through the
+  `failure_mode` policy), and `lineage/emitter` (the "never raises / non-blocking"
+  doctrine requires catching everything). Narrowing those would break documented
+  guarantees.
+- **#7 forge_lineage_sdk** — added a `lineage` optional-dependency group and
+  guarded the SDK import in `lineage/emitter.py`, so the module (and the package)
+  imports without the SDK and fails closed via `_require_sdk()` with actionable
+  guidance only when emission is actually exercised. The lineage *integration*
+  test still requires `fastapi` + the SDK and remains correctly skipped on a bare
+  checkout.
+- **#8 CI** — added `.github/workflows/ci.yml`: a Python job (install `.[dev]`,
+  `ruff check`, `ruff format --check`, `pytest` minus the 3 sibling-repo
+  integration tests) and a Rust job (`cargo fmt --check`, `clippy -D warnings`,
+  `cargo test`).
+- **#10 tool config** — added `[tool.ruff]` (pinned `target-version = "py312"`,
+  `line-length = 88`, explicit `select = ["E","F","W","I"]`, `ignore = ["E501"]`
+  since `ruff format` owns line length). Enabling import-sort (`I`) reordered
+  imports in 26 files.
+
+Still open: #6 sites 2–4 (the three intentional boundaries above — awaiting a
+decision on whether to force-narrow), #11 (cosmetic, left as-is).

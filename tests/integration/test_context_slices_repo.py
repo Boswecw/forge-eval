@@ -13,7 +13,6 @@ from forge_eval.stages.context_slices import run_stage
 from forge_eval.validation.schema_loader import load_schema
 from forge_eval.validation.validate_artifact import validate_instance
 
-
 pytestmark = pytest.mark.integration
 
 

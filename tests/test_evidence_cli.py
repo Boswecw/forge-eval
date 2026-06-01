@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from forge_eval.evidence_cli import EvidenceCli
 from forge_eval.errors import EvidenceCliError
+from forge_eval.evidence_cli import EvidenceCli
 
 
 def _write_executable(path: Path, content: str) -> None:

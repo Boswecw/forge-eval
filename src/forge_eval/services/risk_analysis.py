@@ -5,6 +5,7 @@ import re
 from pathlib import PurePosixPath
 from typing import Iterable
 
+from forge_eval.errors import GitError
 from forge_eval.services.git_diff import (
     file_content_at_ref,
     path_has_allowed_extension,
@@ -126,7 +127,7 @@ def compute_centrality_scores(
     for source in candidate_files:
         try:
             content = file_content_at_ref(repo_path, head_ref, source)
-        except Exception:
+        except GitError:
             # Missing files at head are ignored here; stage logic handles changed targets separately.
             continue
 

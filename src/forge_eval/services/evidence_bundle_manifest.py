@@ -5,8 +5,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from forge_eval.evidence_cli import EvidenceCli
 from forge_eval.errors import StageError
+from forge_eval.evidence_cli import EvidenceCli
 
 _HASHCHAIN_SEED = "forge-evidence-chain-v1"
 

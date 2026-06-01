@@ -10,7 +10,6 @@ from forge_eval.config import normalize_config
 from forge_eval.errors import StageError
 from forge_eval.stages.localization_pack import run_stage
 
-
 SCHEMA_DIR = Path(__file__).resolve().parent.parent / "src" / "forge_eval" / "schemas"
 
 

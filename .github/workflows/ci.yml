@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "claude/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python (lint + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package + dev tooling
+        run: python -m pip install --upgrade pip && pip install -e ".[dev]"
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      # The three ignored modules are cross-repo integration tests that require
+      # sibling ecosystem checkouts (fastapi, forge_contract_core, NeuroForge)
+      # not present in a bare CI checkout; everything else must pass.
+      - name: Pytest
+        run: |
+          pytest \
+            --ignore=tests/lineage/test_forge_eval_emitter.py \
+            --ignore=tests/test_centipede_integration.py \
+            --ignore=tests/test_localization_e2e.py
+
+  rust:
+    name: Rust (fmt + clippy + test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust/forge-evidence
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cargo fmt check
+        run: cargo fmt --check
+
+      - name: Cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Cargo test
+        run: cargo test

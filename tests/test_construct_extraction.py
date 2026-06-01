@@ -8,14 +8,13 @@ import jsonschema
 from forge_eval.config import normalize_config
 from forge_eval.services.construct_extractor import (
     ROOT_CAUSE_HYPOTHESIS_ENUM,
+    derive_root_cause_hypothesis,
     detect_framework,
     detect_language,
-    derive_root_cause_hypothesis,
     extract_constructs,
 )
 from forge_eval.services.patch_scope_builder import build_patch_scope
 from forge_eval.stages.localization_pack import run_stage
-
 
 SCHEMA_DIR = Path(__file__).resolve().parent.parent / "src" / "forge_eval" / "schemas"
 

@@ -4,7 +4,6 @@ from typing import Any
 
 from forge_eval.errors import StageError
 
-
 MERGE_DECISION_MODEL_VERSION = "merge_rev1"
 
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 _FAKE_EVIDENCE_SOURCE = r"""#!/usr/bin/env python3
 import hashlib
 import json
